@@ -9,6 +9,7 @@ services:
     volumes:
       - node-data:/data
       - node-ipc:/ipc
+      - node-config:/opt/cardano/config
     restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "curl -f 127.0.0.1:12798/metrics || exit 1"]
@@ -44,6 +45,38 @@ services:
       options:
         max-size: "200k"
         max-file: "10"
+
+  ogmios:
+    container_name: ogmios
+    # TODO: remove this when arm64 is supported
+    # for now docker-desktop+qemu does the magic on arm64
+    platform: linux/amd64
+    image: cardanosolutions/ogmios:v5.6.0-mainnet
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+      - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
+    depends_on:
+      cardano-node:
+        condition: service_healthy
+    volumes:
+      - node-ipc:/ipc
+      - node-config:/config
+    restart: on-failure
+    command: [
+      "--log-level", "info",
+      "--host", "0.0.0.0",
+      "--port", "1337",
+      "--node-socket", "/ipc/node.socket",
+      "--node-config", "/config/mainnet/config.json"
+    ]
+    ports:
+      - ${OGMIOS_PORT:-1337}:1337
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 1337 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
 
   tx-submit-api:
     container_name: tx-submit-api
@@ -138,6 +171,7 @@ secrets:
 
 volumes:
   node-data:
+  node-config:
   node-ipc:
   db-sync-data:
   postgres:

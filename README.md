@@ -8,6 +8,8 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **cardano-node-api**: This service is responsible for interfacing with local Cardano node. It depends on the cardano-node service to be healthy before starting.
 
+- **ogmios**: This service is a lightweight bridge interface for cardano-node. It provides an HTTP / WebSocket API that enables applications to interact with a local cardano-node via JSON+RPC-2.0. It depends on the cardano-node service to be healthy before starting.
+
 - **tx-submit-api**: This service is responsible for submitting transactions to the Cardano network. It depends on the cardano-node service to be healthy before starting.
 
 - **cardano-db-sync**: This service syncs the Cardano blockchain data to a PostgreSQL database. It depends on both the cardano-node and postgres services to be healthy before starting.
