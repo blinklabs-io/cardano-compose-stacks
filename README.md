@@ -8,6 +8,8 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **cardano-node-api**: This service is responsible for interfacing with local Cardano node. It depends on the cardano-node service to be healthy before starting.
 
+- **bursa**: This service is programatic wallet. It runs without any persistence.
+
 - **ogmios**: This service is a lightweight bridge interface for cardano-node. It provides an HTTP / WebSocket API that enables applications to interact with a local cardano-node via JSON+RPC-2.0. It depends on the cardano-node service to be healthy before starting.
 
 - **tx-submit-api**: This service is responsible for submitting transactions to the Cardano network. It depends on the cardano-node service to be healthy before starting.
@@ -69,3 +71,28 @@ docker compose down
 ```
 
 This will stop and remove all the services started with docker-compose up. If you've started specific services and want to stop them, you can specify them in the down command, similar to the up command.
+
+## How to use Bursa
+
+To start just the bursa service, run:
+
+```bash
+docker compose up bursa
+```
+
+**Access Swagger UI:**
+
+Open your web browser and navigate to the Swagger UI:
+
+<http://localhost:8090/swagger/index.html>
+
+**Execute a Create Request using Swagger UI:**
+
+- In the Swagger UI, find the section for creating a new wallet.
+- Click on the `Get` `/api/v1/wallet/create` operation.
+- Choose `Try it out`.
+- Click `Execute`.
+
+This will send a create request to Bursa and you should receive a JSON response with the details of the newly created wallet.
+
+Store mnemonic in a safe place. If you want to restore the wallet, you will need the mnemonic. If you lose the mnemonic, you will lose access to the wallet.
