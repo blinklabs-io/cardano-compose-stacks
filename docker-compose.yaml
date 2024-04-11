@@ -3,7 +3,7 @@ version: "3.9"
 services:
   cardano-node:
     container_name: cardano-node
-    image: ghcr.io/blinklabs-io/cardano-node:8.1.2-9
+    image: ghcr.io/blinklabs-io/cardano-node:8.9.1-2
     environment:
       - NETWORK=${NETWORK:-mainnet}
     volumes:
@@ -48,7 +48,7 @@ services:
 
   bursa:
     container_name: bursa
-    image: ghcr.io/blinklabs-io/bursa:0.6.0
+    image: ghcr.io/blinklabs-io/bursa:0.7.1
     environment:
       - NETWORK=${NETWORK:-mainnet}
     restart: on-failure
@@ -59,10 +59,7 @@ services:
 
   ogmios:
     container_name: ogmios
-    # TODO: remove this when arm64 is supported
-    # for now docker-desktop+qemu does the magic on arm64
-    platform: linux/amd64
-    image: cardanosolutions/ogmios:v5.6.0-mainnet
+    image: cardanosolutions/ogmios:v6.2.0
     environment:
       - NETWORK=${NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
@@ -91,7 +88,7 @@ services:
 
   tx-submit-api:
     container_name: tx-submit-api
-    image: ghcr.io/blinklabs-io/tx-submit-api:0.14.6
+    image: ghcr.io/blinklabs-io/tx-submit-api:0.16.2
     environment:
       - NETWORK=${NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
