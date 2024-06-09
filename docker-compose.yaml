@@ -27,7 +27,7 @@ services:
   # Currently doesn't have a release yet, so using main branch
   cardano-node-api:
     container_name: cardano-node-api
-    image: ghcr.io/blinklabs-io/cardano-node-api:main
+    image: ghcr.io/blinklabs-io/cardano-node-api:0.1.1
     environment:
       - CARDANO_NETWORK=${CARDANO_NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
@@ -39,6 +39,7 @@ services:
     restart: on-failure
     ports:
       - ${API_LISTEN_PORT:-8080}:8080
+      - ${GRPC_LISTEN_PORT:-9090}:9090
       - ${METRICS_LISTEN_PORT:-8081}:8081
     logging:
       driver: "json-file"
