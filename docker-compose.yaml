@@ -48,14 +48,14 @@ services:
 
   bursa:
     container_name: bursa
-    image: ghcr.io/blinklabs-io/bursa:0.7.1
+    image: ghcr.io/blinklabs-io/bursa:${BURSA_VERSION:-0.8.0}
     environment:
-      - NETWORK=${NETWORK:-mainnet}
+      - NETWORK=${CARDANO_NETWORK:-mainnet}
     restart: on-failure
     command: ["api"]
     ports:
-      - ${API_LISTEN_PORT:-8090}:8080
-      - ${METRICS_LISTEN_PORT:-8081}:8081
+      - ${BURSA_API_LISTEN_PORT:-8090}:8080
+      - ${BURSA_METRICS_LISTEN_PORT:-8081}:8081
 
   ogmios:
     container_name: ogmios
