@@ -3,7 +3,7 @@ version: "3.9"
 services:
   cardano-node:
     container_name: cardano-node
-    image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-8.9.4}
+    image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-9.0.0}
     environment:
       - NETWORK=${NETWORK:-mainnet}
     volumes:
@@ -59,7 +59,7 @@ services:
 
   ogmios:
     container_name: ogmios
-    image: cardanosolutions/ogmios:v${OGMIOS_VERSION:-6.4.0}
+    image: cardanosolutions/ogmios:v${OGMIOS_VERSION:-6.5.0}
     environment:
       - NETWORK=${NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
@@ -108,7 +108,7 @@ services:
 
   cardano-db-sync:
     container_name: cardano-db-sync
-    image: ghcr.io/blinklabs-io/cardano-db-sync:13.1.1.3
+    image: ghcr.io/blinklabs-io/cardano-db-sync:${CARDANO_DB_SYNC_VERSION:-13.3.0.0}
     environment:
       - DISABLE_LEDGER=${DISABLE_LEDGER}
       - NETWORK=${NETWORK:-mainnet}
