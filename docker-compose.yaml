@@ -59,7 +59,7 @@ services:
 
   ogmios:
     container_name: ogmios
-    image: cardanosolutions/ogmios:v6.4.0
+    image: cardanosolutions/ogmios:v${OGMIOS_VERSION:-6.4.0}
     environment:
       - NETWORK=${NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
