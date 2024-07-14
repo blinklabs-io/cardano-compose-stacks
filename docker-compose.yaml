@@ -139,7 +139,7 @@ services:
 
   postgres:
     container_name: postgres
-    image: postgres:15.3-alpine3.18
+    image: postgres:${POSTGRES_VERSION:-15.3-alpine3.18}
     environment:
       - POSTGRES_LOGGING=true
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
