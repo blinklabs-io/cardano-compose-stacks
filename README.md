@@ -97,3 +97,39 @@ Click `Execute`.
 This will send a create request to Bursa, and you should receive a JSON response with the details of the newly created wallet.
 
 Store the mnemonic in a safe place. If you want to restore the wallet, you will need the mnemonic. If you lose the mnemonic, you will lose access to the wallet.
+
+### How to Use Bluefin
+
+To start just the `bluefin` service, which is part of the `bluefin` profile, run:
+
+```bash
+docker compose --profile bluefin up
+```
+
+to start the `bluefin-inspector` service, which is part of the `bluefin-inspector` profile, run:
+
+```bash
+docker compose --profile bluefin-inspector up
+```
+
+to start both the `bluefin` and `bluefin-inspector` services, use `bluefin` and `bluefin-inspector` profile, run:
+
+```bash
+docker compose --profile bluefin --profile bluefin-inspector up
+```
+
+to see the seed phrase of the wallet created by bluefin, run:
+
+```bash
+ docker exec bluefin-inspector cat /data/seed.txt
+```
+
+Bluefin-inspector is a service that will allow you to see the seed phrase of the wallet created by bluefin.
+Seed phrase will be stored and managed on the local filesystem of the Docker host.
+The bluefin-inspector is setup to run for an 1h. After that, it will stop automatically.
+
+You can restart it by running the command below.
+
+```bash
+docker compose --profile bluefin-inspector up -d --force-recreate
+```

@@ -53,6 +53,35 @@ services:
     profiles:
       - node-api
 
+  bluefin:
+    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.10.2}
+    container_name: bluefin
+    environment:
+      - NETWORK=${NETWORK:-preview}
+      - PROFILE=${PROFILE:-tuna-v2}
+      - MNEMONIC=${MNEMONIC}
+      - SUBMIT_URL=${SUBMIT_URL}
+    volumes:
+      - bluefin-data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    restart: on-failure
+    profiles:
+      - bluefin
+  
+  bluefin-inspector:
+    image: busybox
+    container_name: bluefin-inspector
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    volumes:
+      - bluefin-data:/data
+    restart: no
+    profiles:
+      - bluefin-inspector
+
   bursa:
     container_name: bursa
     image: ghcr.io/blinklabs-io/bursa:${BURSA_VERSION:-0.8.0}
@@ -194,8 +223,10 @@ secrets:
     file: ./postgres-config/secrets/postgres_user
 
 volumes:
-  node-data:
-  node-config:
-  node-ipc:
+  bluefin-data:
+    driver: local
   db-sync-data:
+  node-config:
+  node-data:
+  node-ipc:
   postgres:
