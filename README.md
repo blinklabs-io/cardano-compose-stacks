@@ -22,62 +22,63 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 Because each service has defined dependency that means starting a service will also start it's dependencies.
 
+### Using Profiles in Docker Compose
+
+With profiles, you can selectively start services based on different needs or environments.
+Below are examples of how to use profiles in this setup.
+
 ### Start Just the Cardano Node
 
-To start only the cardano-node service, run:
+To start only the `cardano-node` service, which is part of the `node` profile, run:
 
 ```bash
-docker compose up cardano-node
+docker compose --profile node up
 ```
 
 ### Start Cardano Node and cardano-node-api
 
-To start both the cardano-node and cardano-node-api services, run:
+To start both the `cardano-node` and `cardano-node-api` use `node-api` profile, run:
 
 ```bash
-docker compose up cardano-node-api
+docker compose --profile node-api up
 ```
 
 ### Start Cardano Node and tx-submit-api
 
-To start both the cardano-node and tx-submit-api services, run:
+To start both the `cardano-node` and `tx-submit-api` use `tx-submit-api` profile, run:
 
 ```bash
-docker compose up tx-submit-api
+docker compose --profile tx-submit-api up
 ```
 
 ### Start Cardano Node and db-sync
 
-To start both the cardano-node, cardano-db-sync and postgres services, run:
+To start both the `cardano-node` and `cardano-db-sync` use `db-sync` profile, run:
 
 ```bash
-docker compose up cardano-db-sync
+docker compose --profile db-sync up
 ```
 
-## How to Start All Services in Detached Mode
+### Start All Services in Detached Mode
 
-To start all services defined in the docker-compose file in detached mode, simply run:
+To start all services defined in the `docker-compose.yml` file in detached mode, run:
 
-```bash
 docker compose up -d
-```
 
-This command will start all the services (i.e., cardano-node, tx-submit-api, cardano-db-sync, and postgres) in the background.
+This command will start all services (e.g., `cardano-node`, `tx-submit-api`, `cardano-db-sync`, and `postgres`) in the background, regardless of profiles.
+If you need to stop the services later, use:
 
-If you need to stop the services later, you can use:
-
-```bash
 docker compose down
-```
 
-This will stop and remove all the services started with docker-compose up. If you've started specific services and want to stop them, you can specify them in the down command, similar to the up command.
+This will stop and remove all the services started with `docker compose up`.
+If you've started specific services using profiles and want to stop them, you can specify the same profiles in the `down` command.
 
-## How to use Bursa
+### How to Use Bursa
 
-To start just the bursa service, run:
+To start just the `bursa` service, which is part of the `bursa` profile, run:
 
 ```bash
-docker compose up bursa
+docker compose --profile bursa up
 ```
 
 **Access Swagger UI:**
@@ -88,11 +89,11 @@ Open your web browser and navigate to the Swagger UI:
 
 **Execute a Create Request using Swagger UI:**
 
-- In the Swagger UI, find the section for creating a new wallet.
-- Click on the `Get` `/api/v1/wallet/create` operation.
-- Choose `Try it out`.
-- Click `Execute`.
+In the Swagger UI, find the section for creating a new wallet.
+Click on the `Get` `/api/v1/wallet/create` operation.
+Choose `Try it out`.
+Click `Execute`.
 
-This will send a create request to Bursa and you should receive a JSON response with the details of the newly created wallet.
+This will send a create request to Bursa, and you should receive a JSON response with the details of the newly created wallet.
 
-Store mnemonic in a safe place. If you want to restore the wallet, you will need the mnemonic. If you lose the mnemonic, you will lose access to the wallet.
+Store the mnemonic in a safe place. If you want to restore the wallet, you will need the mnemonic. If you lose the mnemonic, you will lose access to the wallet.
