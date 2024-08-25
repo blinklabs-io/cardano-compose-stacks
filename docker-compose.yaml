@@ -24,6 +24,7 @@ services:
         max-size: "200k"
         max-file: "10"
     profiles:
+      - kupmios
       - node
       - node-api
       - ogmios
@@ -94,6 +95,43 @@ services:
       - ${BURSA_METRICS_LISTEN_PORT:-8081}:8081
     profiles:
       - bursa
+  
+  kupo:
+    container_name: kupo
+    image: cardanosolutions/kupo:${KUPO_VERSION:-v2.9.0}
+    environment:
+      - NETWORK=${CARDANO_NETWORK:-mainnet}
+      - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
+    depends_on:
+      cardano-node:
+        condition: service_healthy
+    volumes:
+      - node-ipc:/ipc
+      - kupo-db:/db
+      - node-config:/config
+    restart: on-failure
+    command:
+      - --node-socket
+      - /ipc/node.socket
+      - --host
+      - 0.0.0.0
+      - --port
+      - '1442'
+      - --log-level
+      - Info
+      - --node-config
+      - /config/${NETWORK:-mainnet}/config.json
+      - --match
+      - '*'
+      - --defer-db-indexes
+      - --since
+      - origin
+      - --workdir
+      - '/db'
+    ports:
+      - "1442:1442"
+    profiles:
+      - kupmios
 
   ogmios:
     container_name: ogmios
@@ -113,7 +151,7 @@ services:
       "--host", "0.0.0.0",
       "--port", "1337",
       "--node-socket", "/ipc/node.socket",
-      "--node-config", "/config/mainnet/config.json"
+      "--node-config", "/config/${NETWORK:-mainnet}/config.json"
     ]
     ports:
       - ${OGMIOS_PORT:-1337}:1337
@@ -124,6 +162,7 @@ services:
       retries: 15
       start_period: 60s
     profiles:
+      - kupmios
       - ogmios
 
   tx-submit-api:
@@ -226,6 +265,7 @@ volumes:
   bluefin-data:
     driver: local
   db-sync-data:
+  kupo-db:
   node-config:
   node-data:
   node-ipc:
