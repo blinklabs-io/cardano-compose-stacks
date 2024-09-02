@@ -3,7 +3,7 @@ version: "3.9"
 services:
   cardano-node:
     container_name: cardano-node
-    image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-9.1.0}
+    image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-9.1.1}
     environment:
       - NETWORK=${NETWORK:-mainnet}
     volumes:
