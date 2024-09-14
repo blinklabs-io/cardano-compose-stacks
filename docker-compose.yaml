@@ -167,7 +167,7 @@ services:
 
   tx-submit-api:
     container_name: tx-submit-api
-    image: ghcr.io/blinklabs-io/tx-submit-api:${TX_SUBMIT_API_VERSION:-0.17.4}
+    image: ghcr.io/blinklabs-io/tx-submit-api:${TX_SUBMIT_API_VERSION:-0.17.5}
     environment:
       - NETWORK=${CARDANO_NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
