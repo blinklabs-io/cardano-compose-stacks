@@ -55,10 +55,10 @@ services:
       - node-api
 
   bluefin:
-    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.10.2}
+    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.12.0}
     container_name: bluefin
     environment:
-      - NETWORK=${NETWORK:-preview}
+      - NETWORK=${NETWORK:-mainnet}
       - PROFILE=${PROFILE:-tuna-v2}
       - MNEMONIC=${MNEMONIC}
       - SUBMIT_URL=${SUBMIT_URL}
