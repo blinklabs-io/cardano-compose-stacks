@@ -32,7 +32,7 @@ services:
 
   cardano-node-api:
     container_name: cardano-node-api
-    image: ghcr.io/blinklabs-io/cardano-node-api:${CARDANO_NODE_API_VERSION:-0.3.0}
+    image: ghcr.io/blinklabs-io/cardano-node-api:${CARDANO_NODE_API_VERSION:-0.4.0}
     environment:
       - CARDANO_NETWORK=${CARDANO_NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
