@@ -55,7 +55,7 @@ services:
       - node-api
 
   bluefin:
-    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.12.0}
+    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.13.0}
     container_name: bluefin
     environment:
       - NETWORK=${NETWORK:-mainnet}
