@@ -133,3 +133,11 @@ You can restart it by running the command below.
 ```bash
 docker compose --profile bluefin-inspector up -d --force-recreate
 ```
+
+### How to Use Cardano Wallet
+
+To start just the `cardano-wallet` service, which is part of the `wallet` profile, run:
+
+```bash
+docker compose --profile wallet up
+```

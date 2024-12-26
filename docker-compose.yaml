@@ -53,6 +53,47 @@ services:
     profiles:
       - node-api
 
+  cardano-wallet:
+    container_name: cardano-wallet
+    image: ghcr.io/blinklabs-io/cardano-wallet:${CARDANO_WALLET_VERSION:-2024.11.18}
+    entrypoint: >
+      sh -c '
+      NETWORK=${NETWORK:-mainnet};
+      if [ "$NETWORK" = "mainnet" ]; then
+        echo "Using mainnet configuration";
+        exec cardano-wallet serve --port ${WALLET_PORT:-8090} \
+        --listen-address 0.0.0.0 \
+        --node-socket ${CARDANO_NODE_SOCKET_PATH:-/ipc/node.socket} \
+        --database ${WALLET_DB:-/data/wallet-db} \
+        --mainnet;
+      else
+        echo "Using testnet configuration: /config/$NETWORK/config.json";
+        exec cardano-wallet serve --port ${WALLET_PORT:-8090} \
+        --listen-address 0.0.0.0 \
+        --node-socket ${CARDANO_NODE_SOCKET_PATH:-/ipc/node.socket} \
+        --database ${WALLET_DB:-/data/wallet-db} \
+        --testnet /config/$NETWORK/byron-genesis.json;
+      fi'
+    environment:
+      - NETWORK=${NETWORK:-mainnet}
+      - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
+      - WALLET_DB=${WALLET_DB:-/data/wallet-db}
+      - WALLET_PORT=${WALLET_PORT:-8090}
+    volumes:
+      - wallet-data:/data
+      - node-ipc:/ipc
+      - node-config:/config
+    restart: on-failure
+    ports:
+      - "${WALLET_PORT:-8090}:8090"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    profiles:
+      - wallet
+
   bluefin:
     image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.13.1}
     container_name: bluefin
@@ -269,3 +310,4 @@ volumes:
   node-data:
   node-ipc:
   postgres:
+  wallet-data:
