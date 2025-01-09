@@ -55,7 +55,7 @@ services:
 
   cardano-wallet:
     container_name: cardano-wallet
-    image: ghcr.io/blinklabs-io/cardano-wallet:${CARDANO_WALLET_VERSION:-2024.11.18}
+    image: ghcr.io/blinklabs-io/cardano-wallet:${CARDANO_WALLET_VERSION:-2025.1.9}
     entrypoint: >
       sh -c '
       NETWORK=${NETWORK:-mainnet};
