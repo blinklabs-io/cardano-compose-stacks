@@ -140,7 +140,7 @@ services:
     container_name: kupo
     image: cardanosolutions/kupo:${KUPO_VERSION:-v2.10.0}
     environment:
-      - NETWORK=${CARDANO_NETWORK:-mainnet}
+      - CARDANO_NETWORK=${CARDANO_NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
     depends_on:
       cardano-node:
