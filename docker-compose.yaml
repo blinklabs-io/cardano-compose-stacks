@@ -138,7 +138,7 @@ services:
   
   kupo:
     container_name: kupo
-    image: cardanosolutions/kupo:${KUPO_VERSION:-v2.10.0}
+    image: cardanosolutions/kupo:${KUPO_VERSION:-v2.11.0}
     environment:
       - CARDANO_NETWORK=${CARDANO_NETWORK:-mainnet}
       - CARDANO_NODE_SOCKET_PATH=/ipc/node.socket
