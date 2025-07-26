@@ -95,7 +95,7 @@ services:
       - wallet
 
   bluefin:
-    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.13.2}
+    image: ghcr.io/blinklabs-io/bluefin:${BLUEFIN_VERSION:-0.13.4}
     container_name: bluefin
     environment:
       - NETWORK=${NETWORK:-mainnet}
