@@ -44,7 +44,7 @@ services:
        - "tracer-config.yaml"
 
   d1:
-    image: ghcr.io/blinklabs-io/dingo:latest
+    image: ghcr.io/blinklabs-io/dingo:0.17.0
     restart: on-failure
     hostname: d1.example
     container_name: d1
