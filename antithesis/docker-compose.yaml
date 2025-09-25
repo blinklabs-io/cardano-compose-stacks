@@ -17,6 +17,12 @@ x-cardano-node: &cardano-node
       +RTS -N -A16m -qg -qb -RTS
   restart:
     always
+  healthcheck:
+    test: ["CMD-SHELL", "test -e /state/node.socket"]
+    interval: 10s
+    retries: 5
+    start_period: 30s
+    timeout: 10s
   depends_on:
       configurator:
         condition: service_completed_successfully
@@ -62,6 +68,16 @@ services:
     depends_on:
       configurator:
         condition: service_completed_successfully
+      p1:
+        condition: service_healthy
+      p2:
+        condition: service_healthy
+      p3:
+        condition: service_healthy
+      p4:
+        condition: service_healthy
+      p5:
+        condition: service_healthy
 
   p1:
     <<: *cardano-node
