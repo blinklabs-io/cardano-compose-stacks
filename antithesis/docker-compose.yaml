@@ -141,11 +141,6 @@ services:
 
   adversary:
     image: ghcr.io/cardano-foundation/antithesis/adversary:latest
-    build:
-      context: "../../../adversary/"
-      dockerfile: "Dockerfile"
-      args:
-        CARDANO_NODE_REF: "10.5.1"
     environment:
       NETWORKMAGIC: 42
       PORT: 3001
