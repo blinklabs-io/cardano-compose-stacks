@@ -50,8 +50,8 @@ services:
        - "tracer-config.yaml"
 
   d1:
-    image: ghcr.io/blinklabs-io/dingo:0.17.0
-    restart: on-failure
+    image: wolf31o2/dingo:0.17.0-antithesis
+    restart: always
     hostname: d1.example
     container_name: d1
     volumes:
