@@ -229,7 +229,7 @@ services:
 
   cardano-db-sync:
     container_name: cardano-db-sync
-    image: ghcr.io/blinklabs-io/cardano-db-sync:${CARDANO_DB_SYNC_VERSION:-13.6.0.4}
+    image: ghcr.io/blinklabs-io/cardano-db-sync:${CARDANO_DB_SYNC_VERSION:-13.6.0.5}
     environment:
       - DISABLE_LEDGER=${DISABLE_LEDGER}
       - NETWORK=${NETWORK:-mainnet}
