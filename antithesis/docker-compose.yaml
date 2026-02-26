@@ -1,5 +1,6 @@
 x-cardano-node: &cardano-node
-  image: ghcr.io/blinklabs-io/cardano-node:latest
+  image: ghcr.io/blinklabs-io/cardano-node:10.5.4
+  init: true
   environment:
     CARDANO_BLOCK_PRODUCER: true
     RESTORE_SNAPSHOT: false
@@ -15,8 +16,7 @@ x-cardano-node: &cardano-node
       --port 3001
       --host-addr 0.0.0.0
       +RTS -N -A16m -qg -qb -RTS
-  restart:
-    always
+  restart: always
   healthcheck:
     test: ["CMD-SHELL", "test -e /state/node.socket"]
     interval: 10s
@@ -24,12 +24,15 @@ x-cardano-node: &cardano-node
     start_period: 30s
     timeout: 10s
   depends_on:
-      configurator:
-        condition: service_completed_successfully
+    configurator:
+      condition: service_completed_successfully
+    tracer-sidecar:
+      condition: service_started
 
 services:
   configurator:
-    image: ghcr.io/cardano-foundation/antithesis/configurator:latest
+    image: ghcr.io/cardano-foundation/cardano-node-antithesis/configurator:aa43ea4
+    init: true
     container_name: configurator
     volumes:
       - ./testnet.yaml:/testnet.yaml #  source of configurations
@@ -40,24 +43,27 @@ services:
       - p5-configs:/configs/5 # configs for p5
 
   tracer:
-    image: ghcr.io/cardano-foundation/antithesis/tracer:latest
+    image: ghcr.io/cardano-foundation/cardano-node-antithesis/tracer:fb6208f
+    init: true
     hostname: tracer.example
     container_name: tracer
+    restart: always
     volumes:
       - tracer:/opt/cardano-tracer
     command:
-       - "--config"
-       - "tracer-config.yaml"
+      - "--config"
+      - "tracer-config.yaml"
 
   d1:
-    image: docker.io/wolf31o2/dingo:0.17.0-antithesis
+    image: docker.io/wolf31o2/dingo:0.22.0_pre1-antithesis
+    init: true
     restart: always
     hostname: d1.example
     container_name: d1
     volumes:
-      - p1-configs:/configs # reuse p1 config
+      - p1-configs:/configs:ro
       - tracer:/tracer
-      - ./dingo-topology.json:/opt/cardano/config/devnet/topology.json
+      - ./dingo-topology.json:/opt/cardano/config/devnet/topology.json:ro
     environment:
       CARDANO_CONFIG: /configs/configs/config.json
       CARDANO_DATABASE_PATH: /state
@@ -65,6 +71,12 @@ services:
       CARDANO_NODE_SOCKET_PATH: /state/dingo.socket
       CARDANO_SOCKET_PATH: /state/dingo.socket
       CARDANO_TOPOLOGY: /opt/cardano/config/devnet/topology.json
+    healthcheck:
+      test: ["CMD-SHELL", "test -e /state/dingo.socket"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     depends_on:
       configurator:
         condition: service_completed_successfully
@@ -83,10 +95,8 @@ services:
     <<: *cardano-node
     container_name: p1
     hostname: p1.example
-    ports:
-      - 3001:3001
     volumes:
-      - p1-configs:/configs
+      - p1-configs:/configs:ro
       - tracer:/tracer
 
   p2:
@@ -94,7 +104,7 @@ services:
     container_name: p2
     hostname: p2.example
     volumes:
-      - p2-configs:/configs
+      - p2-configs:/configs:ro
       - tracer:/tracer
 
   p3:
@@ -102,7 +112,7 @@ services:
     container_name: p3
     hostname: p3.example
     volumes:
-      - p3-configs:/configs
+      - p3-configs:/configs:ro
       - tracer:/tracer
 
   p4:
@@ -110,7 +120,7 @@ services:
     container_name: p4
     hostname: p4.example
     volumes:
-      - p4-configs:/configs
+      - p4-configs:/configs:ro
       - tracer:/tracer
 
   p5:
@@ -118,36 +128,59 @@ services:
     container_name: p5
     hostname: p5.example
     volumes:
-      - p5-configs:/configs
+      - p5-configs:/configs:ro
       - tracer:/tracer
 
   sidecar:
-    image: ghcr.io/cardano-foundation/antithesis/sidecar:latest
+    image: ghcr.io/cardano-foundation/cardano-node-antithesis/sidecar:452fae1
+    init: true
     container_name: sidecar
     hostname: sidecar.example
+    restart: always
     environment:
-      POOLS: "5" # FIXME: could remove
+      NETWORKMAGIC: 42
+      PORT: 3001
+      LIMIT: 100
+      POOLS: "5"
+      NCONNS: 1
       EXTRA_NODES: "d1"
+      CHAINPOINT_FILEPATH: "/opt/cardano-tracer/chainPoints.log"
+    volumes:
+      - tracer:/opt/cardano-tracer
+    depends_on:
+      tracer-sidecar:
+        condition: service_started
+    tmpfs:
+      - /tmp
 
   tracer-sidecar:
-    image: ghcr.io/cardano-foundation/antithesis/tracer-sidecar:latest
+    image: ghcr.io/cardano-foundation/cardano-node-antithesis/tracer-sidecar:4da4d4e
+    init: true
     container_name: tracer-sidecar
     hostname: tracer-sidecar.example
+    restart: always
+    command:
+      - "/opt/cardano-tracer/logs"
     environment:
       POOLS: "5"
       CHAINPOINT_FILEPATH: "/opt/cardano-tracer/chainPoints.log"
     volumes:
       - tracer:/opt/cardano-tracer
+    depends_on:
+      tracer:
+        condition: service_started
 
   adversary:
-    image: ghcr.io/cardano-foundation/antithesis/adversary:latest
+    image: ghcr.io/cardano-foundation/cardano-node-antithesis/adversary:latest
+    init: true
+    restart: always
     environment:
       NETWORKMAGIC: 42
       PORT: 3001
       LIMIT: 100
       POOLS: "5"
       CHAINPOINT_FILEPATH: "/opt/cardano-tracer/chainPoints.log"
-    hostname: adversary
+    hostname: adversary.example
     container_name: adversary
     volumes:
       - tracer:/opt/cardano-tracer
@@ -164,4 +197,4 @@ networks:
   default:
     name: cardano-node-testnet
     driver: bridge
-    internal: true
+    internal: ${INTERNAL_NETWORK:-true}
