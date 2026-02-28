@@ -141,3 +141,31 @@ To start just the `cardano-wallet` service, which is part of the `wallet` profil
 ```bash
 docker compose --profile wallet up
 ```
+
+## Version Maintenance
+
+To check for upstream image updates and refresh default versions in the compose file, run:
+
+```bash
+./scripts/check-versions.sh
+```
+
+To validate that all configured compose variables exist with defaults:
+
+```bash
+./scripts/validate-versions.sh
+```
+
+To update a specific service version:
+
+```bash
+./scripts/add-version.sh cardano-node 10.6.2
+```
+
+You can also use the Makefile targets:
+
+```bash
+make check-versions
+make validate-versions
+make add-version PACKAGE=cardano-node VERSION=10.6.2
+```
