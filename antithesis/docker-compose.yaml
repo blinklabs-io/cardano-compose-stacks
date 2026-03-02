@@ -55,11 +55,13 @@ services:
       - "tracer-config.yaml"
 
   d1:
-    image: docker.io/wolf31o2/dingo:0.22.0_pre1-antithesis
+    image: docker.io/wolf31o2/dingo:0.22.0_pre2-antithesis
     init: true
     restart: always
     hostname: d1.example
     container_name: d1
+    command:
+      - "--debug"
     volumes:
       - p1-configs:/configs:ro
       - tracer:/tracer
@@ -197,4 +199,4 @@ networks:
   default:
     name: cardano-node-testnet
     driver: bridge
-    internal: ${INTERNAL_NETWORK:-true}
+    internal: ${INTERNAL_NETWORK}
