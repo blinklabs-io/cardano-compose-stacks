@@ -60,8 +60,6 @@ services:
     restart: always
     hostname: d1.example
     container_name: d1
-    command:
-      - "--debug"
     volumes:
       - p1-configs:/configs:ro
       - tracer:/tracer
