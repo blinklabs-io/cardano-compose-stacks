@@ -17,6 +17,7 @@ This docker-compose setup provides a comprehensive environment for running Carda
 - **cardano-db-sync**: This service syncs the Cardano blockchain data to a PostgreSQL database. It depends on both the cardano-node and postgres services to be healthy before starting.
 
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
+- **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node, cardano-node-api, and Bursa, and provides a preloaded service health dashboard.
 
 ## How to Start Services
 
@@ -26,6 +27,16 @@ Because each service has defined dependency that means starting a service will a
 
 With profiles, you can selectively start services based on different needs or environments.
 Below are examples of how to use profiles in this setup.
+
+### Start the Observability Stack
+
+Start Prometheus and Grafana with the `observability` profile:
+
+```bash
+docker compose --profile observability up -d
+```
+
+Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node, cardano-node-api, and Bursa when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
 
 ### Start Just the Cardano Node
 
