@@ -293,6 +293,40 @@ services:
     profiles:
       - db-sync
 
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9091}:9090"
+    restart: on-failure
+    profiles:
+      - observability
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:13.2.2
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    restart: on-failure
+    profiles:
+      - observability
+
 secrets:
   postgres_db:
     file: ./postgres-config/secrets/postgres_db
@@ -311,3 +345,5 @@ volumes:
   node-ipc:
   postgres:
   wallet-data:
+  prometheus-data:
+  grafana-data:
