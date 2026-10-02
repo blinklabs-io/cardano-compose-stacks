@@ -28,6 +28,13 @@ MODULE_ROOT="${SCRIPT_DIR}"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 TESTNET_YAML="${SCRIPT_DIR}/testnet.yaml"
 PRUNING_DATA_DIR="${SCRIPT_DIR}/tmp/dingo-pruning-data"
+COMPOSE_STARTED=false
+
+source "${SCRIPT_DIR}/load-env.sh"
+load_env_defaults "${SCRIPT_DIR}/.env"
+export ARCHIVEDEMO_DINGO_ARCHIVE_ADDR="${ARCHIVEDEMO_DINGO_ARCHIVE_ADDR:-localhost:${ARCHIVEDEMO_DINGO_ARCHIVE_PORT:-3111}}"
+export ARCHIVEDEMO_DINGO_PRUNING_ADDR="${ARCHIVEDEMO_DINGO_PRUNING_ADDR:-localhost:${ARCHIVEDEMO_DINGO_PRUNING_PORT:-3113}}"
+export ARCHIVEDEMO_MINIO_ENDPOINT="${ARCHIVEDEMO_MINIO_ENDPOINT:-http://localhost:${ARCHIVEDEMO_MINIO_PORT:-9100}}"
 
 KEEP_UP=false
 TEST_ARGS=()
@@ -47,6 +54,9 @@ cleanup() {
   if [[ -n "${INSPECT_DIR:-}" ]] && [[ -d "${INSPECT_DIR}" ]]; then
     rm -rf "${INSPECT_DIR}"
   fi
+  if [[ "${COMPOSE_STARTED}" != "true" ]]; then
+    return "${exit_code}"
+  fi
   if [[ "${KEEP_UP}" == "true" ]] && [[ ${exit_code} -eq 0 ]]; then
     log "Tests passed. Stack left running (--keep-up)."
     log "To stop:  docker compose -f ${COMPOSE_FILE} down -v"
@@ -58,7 +68,12 @@ cleanup() {
   fi
   log "Tearing down..."
   docker compose -f "${COMPOSE_FILE}" down -v 2>/dev/null || true
-  rm -rf "${SCRIPT_DIR}/tmp"
+  if [[ -d "${SCRIPT_DIR}/tmp" ]]; then
+    docker run --rm --user 0 -v "${SCRIPT_DIR}/tmp":/cleanup alpine \
+      sh -c 'rm -rf /cleanup/* /cleanup/.[!.]* 2>/dev/null || true' \
+      >/dev/null 2>&1 || true
+    rm -rf "${SCRIPT_DIR}/tmp" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 
@@ -77,6 +92,7 @@ log "Bringing up archive-demo stack..."
 mkdir -p "${PRUNING_DATA_DIR}"
 chmod 777 "${PRUNING_DATA_DIR}"
 docker compose -f "${COMPOSE_FILE}" up -d --build
+COMPOSE_STARTED=true
 
 log "Waiting for dingo-pruning to become healthy..."
 deadline=$(( $(date +%s) + 240 ))

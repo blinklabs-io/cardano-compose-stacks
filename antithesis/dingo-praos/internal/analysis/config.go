@@ -158,7 +158,14 @@ func LoadConfig() (*Config, error) {
 		}
 		if os.Getenv("ANALYSIS_MAX_FORK_DEPTH") == "" &&
 			gcfg.SecurityParam > 0 {
-			// SecurityParam always fits in int.
+			maxInt := uint64(^uint(0) >> 1)
+			if gcfg.SecurityParam > maxInt {
+				return nil, fmt.Errorf(
+					"ANALYSIS_GENESIS_FILE: securityParam %d exceeds max int %d",
+					gcfg.SecurityParam,
+					maxInt,
+				)
+			}
 			cfg.MaxForkDepth = int(gcfg.SecurityParam) //nolint:gosec
 		}
 		if gcfg.EpochLength == 0 {

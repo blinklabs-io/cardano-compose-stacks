@@ -244,7 +244,7 @@ services:
       # first submission, and an exited txpump never comes back.
       TXPUMP_STARTUP_TIMEOUT: "0"
       TXPUMP_LOG_DIR: "/logs"
-      TXPUMP_GENESIS_FILE: "/testnet-config/testnet.yaml"
+      TXPUMP_GENESIS_FILE: "/configs/configs/shelley-genesis.json"
       TXPUMP_GENESIS_UTXO_FILE: "/utxo-keys"
       TXPUMP_CONWAY_GENESIS_FILE: "/utxo-keys/genesis/conway-genesis.json"
     volumes:
@@ -294,7 +294,7 @@ services:
 networks:
   testnet:
     driver: bridge
-    internal: ${INTERNAL_NETWORK:-false}
+    internal: ${INTERNAL_NETWORK}
 
 # ---------------------------------------------------------------------------
 # Volumes

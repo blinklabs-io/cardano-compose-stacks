@@ -196,6 +196,9 @@ func (m *Metrics) recordTxSubmitted(ev *BlockEvent) {
 
 // recordChainExtended handles an EventChainExtended under the held lock.
 func (m *Metrics) recordChainExtended(ev *BlockEvent) {
+	if ev.Slot == 0 {
+		return
+	}
 	prev, ok := m.ChainTipByNode[ev.NodeID]
 	if !ok || ev.Slot > prev {
 		m.ChainTipByNode[ev.NodeID] = ev.Slot

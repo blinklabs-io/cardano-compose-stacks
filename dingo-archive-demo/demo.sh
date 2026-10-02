@@ -40,16 +40,8 @@ MODULE_ROOT="${SCRIPT_DIR}"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 PRUNING_DATA_DIR="${SCRIPT_DIR}/tmp/dingo-pruning-data"
 
-# Mirror Compose's .env handling so port overrides set there reach the bash
-# side (host-port references like demo-fetch's --addr). Without this, .env-only
-# overrides take effect for `docker compose up` but not for our localhost
-# clients, leaving them aimed at the default ports.
-if [[ -f "${SCRIPT_DIR}/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "${SCRIPT_DIR}/.env"
-  set +a
-fi
+source "${SCRIPT_DIR}/load-env.sh"
+load_env_defaults "${SCRIPT_DIR}/.env"
 
 # LAN address used for the Minio console URL we print to the operator. We pick
 # the source IP for the default route so a viewer on another machine can open
@@ -103,7 +95,8 @@ command -v go     >/dev/null || die "go is not installed"
 say "Building demo-fetch helper..."
 DEMO_BIN_DIR="$(mktemp -d)"
 DEMO_FETCH="${DEMO_BIN_DIR}/demo-fetch"
-( cd "${MODULE_ROOT}" && go build -o "${DEMO_FETCH}" ./cmd/demo-fetch )
+INSPECT_BLOB="${DEMO_BIN_DIR}/inspect-blob"
+( cd "${MODULE_ROOT}" && go build -o "${DEMO_FETCH}" ./cmd/demo-fetch && go build -o "${INSPECT_BLOB}" ./cmd/inspect-blob )
 note "built: ${DEMO_FETCH}"
 
 # ---------------------------------------------------------------------------
@@ -207,6 +200,7 @@ note "  if the bark proxy is wired correctly, dingo-pruning fetches it from the 
 note ""
 note "Running demo-fetch (timeout 60s)..."
 echo
+POINT_FILE="${DEMO_BIN_DIR}/point"
 set +e
 "${DEMO_FETCH}" \
   --addr "localhost:${ARCHIVEDEMO_DINGO_PRUNING_PORT:-3113}" \
@@ -214,6 +208,7 @@ set +e
   --resolve-addr "localhost:${ARCHIVEDEMO_DINGO_ARCHIVE_PORT:-3111}" \
   --resolve-name dingo-archive \
   --slot 50 \
+  --point-file "${POINT_FILE}" \
   --timeout 60s
 fetch_exit=$?
 set -e
@@ -221,7 +216,22 @@ echo
 
 case "${fetch_exit}" in
   0)
-    say "Demo complete: transparent proxy via bark works end to end."
+    if [[ "${KEEP_UP}" == "true" ]]; then
+      say "BlockFetch succeeded. Local Badger verification was skipped because --keep-up leaves the node running."
+      exit 0
+    fi
+    docker compose -f "${COMPOSE_FILE}" stop dingo-pruning >/dev/null
+    read -r target_slot target_hash < "${POINT_FILE}"
+    if "${INSPECT_BLOB}" -dir "${PRUNING_DATA_DIR}" \
+      -slot "${target_slot}" -hash "${target_hash}"; then
+      die "target block is still present in local Badger; archive proxy was not proven"
+    else
+      inspect_exit=$?
+      if [[ "${inspect_exit}" -ne 1 ]]; then
+        die "inspect-blob failed with exit ${inspect_exit}"
+      fi
+    fi
+    say "Demo complete: BlockFetch succeeded after the target block expired from local Badger."
     ;;
   *)
     die "demo-fetch failed (exit ${fetch_exit}); see logs above"

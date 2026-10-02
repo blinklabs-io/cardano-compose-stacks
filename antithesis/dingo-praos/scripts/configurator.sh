@@ -238,6 +238,7 @@ echo "copying testnet.yaml to /testnet-config/testnet.yaml"
 if [ -d /testnet-config ]; then
     cp /testnet.yaml /testnet-config/testnet.yaml
 fi
+cp /configs/1/configs/shelley-genesis.json /testnet-config/shelley-genesis.json
 
 # Test-only credentials: make config + genesis files world-readable so any
 # consuming container's user can read them.

@@ -107,7 +107,9 @@ func ParseLogLine(line string) *BlockEvent {
 		return parseCardanoNodeLine(raw)
 	}
 	if _, hasMsgKey := raw["msg"]; hasMsgKey {
-		return parseDingoLine(raw)
+		if ev := parseDingoLine(raw); ev != nil {
+			return ev
+		}
 	}
 	// txpump log format: {"ts":"...","tx_id":"...","tx_type":"...","status":"..."}
 	if _, hasTxType := raw["tx_type"]; hasTxType {

@@ -139,7 +139,6 @@ services:
 
   dingo-archive:
     image: ${DINGO_IMAGE:-ghcr.io/blinklabs-io/dingo:main}
-    pull_policy: always
     container_name: archivedemo-dingo-archive
     depends_on:
       configurator:
@@ -182,7 +181,6 @@ services:
 
   dingo-pruning:
     image: ${DINGO_IMAGE:-ghcr.io/blinklabs-io/dingo:main}
-    pull_policy: always
     container_name: archivedemo-dingo-pruning
     depends_on:
       dingo-archive:

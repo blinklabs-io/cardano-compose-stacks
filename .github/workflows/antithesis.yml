@@ -111,11 +111,12 @@ jobs:
       - id: check
         env:
           MOOG_REQUESTER_WALLET: ${{ secrets.MOOG_REQUESTER_WALLET }}
+          MOOG_REQUESTER: ${{ vars.MOOG_REQUESTER }}
         run: |
-          if [ -n "$MOOG_REQUESTER_WALLET" ]; then
+          if [ -n "$MOOG_REQUESTER_WALLET" ] && [ -n "$MOOG_REQUESTER" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "MOOG_REQUESTER_WALLET not configured - skipping submission"
+            echo "MOOG_REQUESTER_WALLET or MOOG_REQUESTER not configured - skipping submission"
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 

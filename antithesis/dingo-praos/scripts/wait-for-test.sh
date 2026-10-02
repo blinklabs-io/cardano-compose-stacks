@@ -70,7 +70,8 @@ while true; do
     pending)
       ;;
     *)
-      echo "unknown status: $STATUS"
+      echo "error: unknown status during acceptance phase: $STATUS" >&2
+      exit 1
       ;;
   esac
   sleep 10
@@ -113,7 +114,8 @@ while true; do
     accepted)
       ;;
     *)
-      echo "unknown status: $STATUS"
+      echo "error: unknown status during completion phase: $STATUS" >&2
+      exit 1
       ;;
   esac
   sleep 300

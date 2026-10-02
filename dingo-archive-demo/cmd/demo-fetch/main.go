@@ -60,6 +60,7 @@ func main() {
 		"dingo-archive",
 		"name for the resolve endpoint",
 	)
+	pointFile := flag.String("point-file", "", "write the resolved slot and hash to this file")
 	timeout := flag.Duration("timeout", 60*time.Second, "per-step timeout")
 	flag.Parse()
 
@@ -88,6 +89,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "FAIL: %v\n", err)
 		os.Exit(1)
+	}
+	if *pointFile != "" {
+		pointData := fmt.Sprintf("%d %x\n", point.Slot, point.Hash)
+		if err := os.WriteFile(*pointFile, []byte(pointData), 0o600); err != nil {
+			fmt.Fprintf(os.Stderr, "FAIL: write resolved block point: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	logf(
 		"resolved: slot=%d hash=%x (took %s)",

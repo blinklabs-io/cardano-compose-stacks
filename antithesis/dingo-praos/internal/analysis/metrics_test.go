@@ -292,7 +292,10 @@ func TestMetrics_SnapshotIsIndependent(t *testing.T) {
 
 	snap := m.Snapshot()
 
-	// Mutate after snapshot — snap should be unaffected
+	require.Equal(t, 1, snap.BlocksByNode["p1"])
+	snap.BlocksByNode["p1"] = 99
+
+	// Mutate metrics after snapshot; both snapshot values and map storage stay independent.
 	m.RecordEvent(&BlockEvent{
 		Type:      EventForgedBlock,
 		NodeID:    "p1",
@@ -301,4 +304,6 @@ func TestMetrics_SnapshotIsIndependent(t *testing.T) {
 	})
 
 	require.Equal(t, 1, snap.TotalBlocksForged)
+	require.Equal(t, 99, snap.BlocksByNode["p1"])
+	require.Equal(t, 2, m.Snapshot().BlocksByNode["p1"])
 }

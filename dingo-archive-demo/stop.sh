@@ -23,6 +23,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Stopping archive-demo..."
-docker compose -f "${SCRIPT_DIR}/docker-compose.yml" down -v
-rm -rf "${SCRIPT_DIR}/tmp"
+status=0
+docker compose -f "${SCRIPT_DIR}/docker-compose.yml" down -v || status=$?
+if [[ -d "${SCRIPT_DIR}/tmp" ]]; then
+  docker run --rm --user 0 -v "${SCRIPT_DIR}/tmp":/cleanup alpine \
+    sh -c 'rm -rf /cleanup/* /cleanup/.[!.]* 2>/dev/null || true' \
+    >/dev/null 2>&1 || status=$?
+  rm -rf "${SCRIPT_DIR}/tmp" 2>/dev/null || status=$?
+fi
 echo "Stopped."
+exit "${status}"

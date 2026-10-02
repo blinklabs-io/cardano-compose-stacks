@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-UTXO_HD_WITH="mem"
+UTXO_HD_WITH="${UTXO_HD_WITH:-mem}"
 
 # Log file
 

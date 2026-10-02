@@ -36,16 +36,37 @@ if [[ ! -f "${TESTNET_YAML}" ]]; then
   exit 1
 fi
 
-delegated_supply="$(awk -F': *' '/^delegatedSupply:/ {print $2; exit}' "${TESTNET_YAML}")"
-max_lovelace_supply="$(awk -F': *' '/^maxLovelaceSupply:/ {print $2; exit}' "${TESTNET_YAML}")"
+read_yaml_value() {
+  local key="$1"
+  awk -v key="${key}" '
+    $1 == key ":" {
+      value = $0
+      sub(/^[^:]*:[[:space:]]*/, "", value)
+      sub(/[[:space:]]*#.*/, "", value)
+      sub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^["\047]|["\047]$/, "", value)
+      print value
+      exit
+    }
+  ' "${TESTNET_YAML}"
+}
+
+delegated_supply="$(read_yaml_value delegatedSupply)"
+max_lovelace_supply="$(read_yaml_value maxLovelaceSupply)"
 
 if [[ -z "${delegated_supply}" || -z "${max_lovelace_supply}" ]]; then
   echo "${SELF}: could not read delegatedSupply/maxLovelaceSupply from ${TESTNET_YAML}" >&2
   exit 1
 fi
 
-circulating=$(( delegated_supply * 2 ))
-if (( circulating > max_lovelace_supply )); then
+if [[ ! "${delegated_supply}" =~ ^[0-9]+$ || ! "${max_lovelace_supply}" =~ ^[0-9]+$ || \
+  ${#delegated_supply} -gt 18 || ${#max_lovelace_supply} -gt 18 ]]; then
+  echo "${SELF}: delegatedSupply/maxLovelaceSupply must be unsigned decimal integers within range" >&2
+  exit 1
+fi
+
+circulating=$(( 10#${delegated_supply} * 2 ))
+if (( circulating > 10#${max_lovelace_supply} )); then
   echo "${SELF}: ${TESTNET_YAML} would generate ${circulating} lovelace of genesis" \
     "UTxOs (delegatedSupply=${delegated_supply} x2 for staked+unstaked addresses)," \
     "exceeding maxLovelaceSupply=${max_lovelace_supply}" >&2

@@ -29,9 +29,8 @@ import (
 
 // testnetParams holds the required testnet parameters (YAML document 1).
 type testnetParams struct {
-	PoolCount       int    `yaml:"poolCount"`
-	NetworkMagic    uint32 `yaml:"networkMagic"`
-	SystemStartUnix int64  `yaml:"systemStartUnix"`
+	PoolCount    int    `yaml:"poolCount"`
+	NetworkMagic uint32 `yaml:"networkMagic"`
 }
 
 // byronOverride holds the Byron genesis overrides (YAML document 2).
@@ -57,7 +56,6 @@ type Config struct {
 	SlotLength       float64
 	ActiveSlotsCoeff float64
 	SecurityParam    uint64
-	SystemStartUnix  int64
 }
 
 // Load reads testnet.yaml from the given path and returns the parsed Config.
@@ -143,7 +141,6 @@ func Parse(data []byte) (*Config, error) {
 		SlotLength:       shelley.SlotLength,
 		ActiveSlotsCoeff: shelley.ActiveSlotsCoeff,
 		SecurityParam:    secParam,
-		SystemStartUnix:  params.SystemStartUnix,
 	}
 
 	// Validate required fields.

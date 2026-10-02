@@ -16,8 +16,8 @@ package analysis
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -41,15 +42,10 @@ type fileState struct {
 	nodeID   string
 	identity string
 	offset   int64
-	// consumed holds the bytes just before offset as of the last read. An
-	// append-only log never changes them; a process that truncates and
-	// rewrites its log in place does, even when the new content is longer.
+	// consumed hashes every byte before offset to detect in-place rewrites.
 	consumed []byte
 	warned   bool
 }
-
-// consumedFingerprintLen bounds how many already-read bytes identify a log.
-const consumedFingerprintLen = 256
 
 type ingestionStats struct {
 	nodeFiles      map[string]struct{}
@@ -231,13 +227,15 @@ func (a *Analyzer) readNewLines() {
 			return nil
 		},
 	)
-	// Prefer active files over rotations so a renamed active file is not used
-	// as the canonical state when both paths refer to the same inode.
+	// Process older rotations first so event order follows the log chronology.
 	sort.Slice(logFiles, func(i, j int) bool {
-		iRotated := isRotatedLog(logFiles[i].path)
-		jRotated := isRotatedLog(logFiles[j].path)
-		if iRotated != jRotated {
-			return !iRotated
+		if logFiles[i].nodeID != logFiles[j].nodeID {
+			return logFiles[i].nodeID < logFiles[j].nodeID
+		}
+		iAge := rotatedLogAge(logFiles[i].path)
+		jAge := rotatedLogAge(logFiles[j].path)
+		if iAge != jAge {
+			return iAge > jAge
 		}
 		return logFiles[i].path < logFiles[j].path
 	})
@@ -258,14 +256,14 @@ func (a *Analyzer) readNewLines() {
 // known offset.
 func (a *Analyzer) readFile(path, role, nodeID string) bool {
 	state, ok := a.files[path]
-	if !ok {
-		state = &fileState{path: path, nodeID: nodeID}
-		a.files[path] = state
-	}
 	//nolint:gosec // log file path derived from config, not user input
 	f, err := os.Open(path)
 	if err != nil {
 		a.ingestion.openFailures++
+		if state == nil {
+			state = &fileState{path: path, nodeID: nodeID}
+			a.files[path] = state
+		}
 		if !state.warned {
 			a.logger.Warn("cannot read log file", "path", path, "err", err)
 			state.warned = true
@@ -275,7 +273,7 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 	defer f.Close() //nolint:errcheck // read-only open
 	info, err := f.Stat()
 	identity := fileIdentity(info)
-	if ok && state.identity != "" && state.identity != identity {
+	if ok && state != nil && state.identity != "" && state.identity != identity {
 		state = nil
 	}
 	if state == nil && identity != "" {
@@ -304,7 +302,7 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 	// not evidence: a restarting entrypoint touches its log before appending,
 	// and replaying the unchanged content would count every event twice.
 	if state.offset > 0 && ((err == nil && info.Size() < state.offset) ||
-		!bytes.Equal(state.consumed, readConsumed(f, state.offset))) {
+		!equalHash(state.consumed, readConsumed(f, state.offset))) {
 		a.logger.Info("log file truncated, resetting offset", "path", path)
 		state.offset = 0
 	}
@@ -362,13 +360,29 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 	return true
 }
 
-// readConsumed returns up to consumedFingerprintLen bytes of f ending at
-// offset.
+// readConsumed returns a SHA-256 digest of all bytes in f before offset.
 func readConsumed(f *os.File, offset int64) []byte {
-	start := max(offset-consumedFingerprintLen, 0)
-	buf := make([]byte, offset-start)
-	n, _ := f.ReadAt(buf, start)
-	return buf[:n]
+	if offset <= 0 {
+		return nil
+	}
+	hash := sha256.New()
+	n, err := io.CopyN(hash, io.NewSectionReader(f, 0, offset), offset)
+	if err != nil || n != offset {
+		return nil
+	}
+	return hash.Sum(nil)
+}
+
+func equalHash(a, b []byte) bool {
+	if len(a) != sha256.Size || len(b) != sha256.Size {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func fileIdentity(info os.FileInfo) string {
@@ -383,8 +397,20 @@ func fileIdentity(info os.FileInfo) string {
 }
 
 func isRotatedLog(path string) bool {
+	return rotatedLogAge(path) > 0
+}
+
+func rotatedLogAge(path string) int {
 	base := filepath.Base(path)
-	return strings.Contains(base, ".log.")
+	marker := strings.LastIndex(base, ".log.")
+	if marker < 0 {
+		return 0
+	}
+	age, err := strconv.Atoi(base[marker+len(".log."):])
+	if err != nil || age < 1 {
+		return 0
+	}
+	return age
 }
 
 // reportSafetyAssertions evaluates safety properties and fires assertions.

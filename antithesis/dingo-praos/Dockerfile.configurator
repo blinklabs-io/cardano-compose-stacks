@@ -49,6 +49,7 @@ RUN chmod 0755 /configurator.sh && \
         /configs/4 /configs/4/configs \
         /configs/5 /configs/5/configs \
         /configs/utxo-keys \
+        /testnet-config \
         /logs \
         /tmp/testnet && \
     chown -R cardano:cardano \

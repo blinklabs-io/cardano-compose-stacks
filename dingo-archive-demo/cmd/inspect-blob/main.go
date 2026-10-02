@@ -26,6 +26,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/blinklabs-io/dingo/database/plugin/blob/badger"
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	store, err := badger.New(
-		badger.WithDataDir(*dir),
+		badger.WithDataDir(filepath.Join(*dir, "blob")),
 		badger.WithBlockCacheSize(badger.DefaultAPIBlockCacheSize),
 		badger.WithIndexCacheSize(badger.DefaultAPIIndexCacheSize),
 		badger.WithCompressionEnabled(badger.DefaultAPICompressionEnabled),
