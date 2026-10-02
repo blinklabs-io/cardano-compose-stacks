@@ -276,19 +276,15 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 	if ok && state != nil && state.identity != "" && state.identity != identity {
 		state = nil
 	}
-	if state == nil && identity != "" {
-		state = a.filesByIdentity[identity]
+	if identity != "" {
+		if saved := a.filesByIdentity[identity]; saved != nil {
+			state = saved
+		}
 	}
 	if state == nil {
 		state = &fileState{path: path, nodeID: nodeID}
 	}
 	if identity != "" {
-		if existing := a.filesByIdentity[identity]; existing != nil &&
-			existing != state {
-			// A rotated file is the same inode under a new path. It has already
-			// been consumed during this pass under the active path.
-			return true
-		}
 		state.identity = identity
 		a.filesByIdentity[identity] = state
 	}

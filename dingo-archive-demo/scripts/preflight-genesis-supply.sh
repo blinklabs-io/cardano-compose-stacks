@@ -38,8 +38,9 @@ fi
 
 read_yaml_value() {
   local key="$1"
-  awk -v key="${key}" '
-    BEGIN { document = 1; saw_separator = 0 }
+  local target_document="$2"
+  awk -v key="${key}" -v target_document="${target_document}" '
+    BEGIN { document = 1; saw_separator = 0; matches = 0 }
     $1 == "---" {
       if (saw_separator) {
         document++
@@ -48,21 +49,21 @@ read_yaml_value() {
       }
       next
     }
-    document != 1 { next }
+    document != target_document { next }
     $1 == key ":" {
       value = $0
       sub(/^[^:]*:[[:space:]]*/, "", value)
       sub(/[[:space:]]*#.*/, "", value)
       sub(/^[[:space:]]+|[[:space:]]+$/, "", value)
       gsub(/^["\047]|["\047]$/, "", value)
-      print value
-      exit
+      matches++
     }
+    END { if (matches == 1) print value }
   ' "${TESTNET_YAML}"
 }
 
-delegated_supply="$(read_yaml_value delegatedSupply)"
-max_lovelace_supply="$(read_yaml_value maxLovelaceSupply)"
+delegated_supply="$(read_yaml_value delegatedSupply 1)"
+max_lovelace_supply="$(read_yaml_value maxLovelaceSupply 3)"
 
 if [[ -z "${delegated_supply}" || -z "${max_lovelace_supply}" ]]; then
   echo "${SELF}: could not read delegatedSupply/maxLovelaceSupply from ${TESTNET_YAML}" >&2
