@@ -81,45 +81,6 @@ config_config_json() {
     esac
 }
 
-config_topology_json() {
-    # Generate a ring topology, where pool_n is connected to pool_{n-1} and pool_{n+1}
-
-    VALENCY=2
-
-    local num_pools=$1
-    local i prev next
-
-    for ((i=1; i<=num_pools; i++)); do
-        prev=$((i - 1))
-        if [ $prev -eq 0 ]; then
-            prev=$num_pools
-        fi
-
-        next=$((i + 1))
-        if [ $next -gt $num_pools ]; then
-            next=1
-        fi
-
-        cat <<EOF > "/configs/$i/configs/topology.json"
-{
-  "localRoots": [
-    {
-      "accessPoints": [
-        {"address": "p${prev}.example", "port": 3001},
-        {"address": "p${next}.example", "port": 3001}
-      ],
-    "advertise": true,
-    "trustable": true,
-    "valency": ${VALENCY}
-    }
-  ],
-    "publicRoots": [],
-    "useLedgerAfterSlot": 0
-}
-EOF
-    done
-}
-
 compute_start_time() {
     # Set system start to now + 30s to give Docker time to start node
     # containers after the configurator exits.
@@ -159,11 +120,6 @@ cp -r /tmp/testnet/utxos/* /configs
 echo "removing /configs/keys"; rm -rf /configs/keys
 
 pools=$(ls -d /configs/[0-9]* 2>/dev/null)
-number_of_pools=$(echo "$pools" | grep -c '^/' || true)
-echo "number_of_pools: $number_of_pools"
-
-# Generate ring topology for all pools (writes all files in one pass)
-config_topology_json "$number_of_pools"
 
 # Override system start time AFTER key generation completes.
 # genesis-cli.py's systemStartDelay (5s) is too short because key generation

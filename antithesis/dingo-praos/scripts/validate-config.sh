@@ -2,12 +2,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TMP_CONFIG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/antithesis-config.XXXXXX")"
+trap 'rm -rf "$TMP_CONFIG_DIR"' EXIT
+
 validate_compose() {
   local compose_file="$1"
   local moog="$2"
-  local rendered
-  rendered="$(mktemp)"
-  trap 'rm -f "$rendered"' RETURN
+  local rendered="${TMP_CONFIG_DIR}/rendered-${moog}"
   if [[ "$moog" == "true" ]]; then
     grep -Eq '^[[:space:]]+internal: \$\{INTERNAL_NETWORK\}$' "$compose_file"
   fi

@@ -165,6 +165,8 @@ func parseCardanoNodeLine(raw map[string]interface{}) *BlockEvent {
 		evType = EventBlockReceived
 	case strings.Contains(ns, "Mempool") && strings.Contains(ns, "AddedTx"):
 		evType = EventMempoolAdd
+	case strings.Contains(ns, "Mempool") && strings.Contains(ns, "RemoveTx"):
+		evType = EventTxConfirmed
 	default:
 		return nil
 	}
@@ -175,6 +177,11 @@ func parseCardanoNodeLine(raw map[string]interface{}) *BlockEvent {
 	ev.BlockHash = extractHash(raw)
 	ev.TxID = extractTxID(raw)
 	if data, ok := raw["data"].(map[string]interface{}); ok {
+		if ev.Type == EventTxConfirmed && ev.TxID == "" {
+			if tx, ok := data["tx"].(map[string]interface{}); ok {
+				ev.TxID = stringValue(tx["txid"])
+			}
+		}
 		if val, ok := data["val"].(map[string]interface{}); ok {
 			if ev.Slot == 0 {
 				ev.Slot = extractSlot(val)

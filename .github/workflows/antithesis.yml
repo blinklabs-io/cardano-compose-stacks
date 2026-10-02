@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   build-images:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.repository == 'blinklabs-io/cardano-compose-stacks'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,7 +123,7 @@ jobs:
   submit-antithesis:
     name: Submit Antithesis test via Moog
     needs: [build-images, check-moog-secrets]
-    if: needs['check-moog-secrets'].outputs.available == 'true'
+    if: github.repository == 'blinklabs-io/cardano-compose-stacks' && needs['check-moog-secrets'].outputs.available == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -160,13 +160,13 @@ jobs:
       - name: Resolve Moog release
         id: moog-release
         run: |
-          TAG="${MOOG_TAG_INPUT:-v0.5.1.5}"
+          TAG="$MOOG_TAG_INPUT"
           VERSION="${TAG#v}"
           TAG="v${VERSION}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         env:
-          MOOG_TAG_INPUT: ${{ inputs.moog_tag }}
+          MOOG_TAG_INPUT: ${{ inputs.moog_tag || 'v0.5.1.5' }}
       - name: Download and install Moog
         run: |
           set -euo pipefail

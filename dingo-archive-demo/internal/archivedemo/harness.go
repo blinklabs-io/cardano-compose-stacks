@@ -17,7 +17,6 @@
 package archivedemo
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -193,7 +192,7 @@ func FindBlockAtOrAfterSlot(
 			}
 			close(done)
 		})
-		return errors.New("archivedemo: target reached")
+		return chainsync.ErrStopSyncProcess
 	}
 
 	rollBackward := func(_ chainsync.CallbackContext, _ pcommon.Point, _ chainsync.Tip) error {

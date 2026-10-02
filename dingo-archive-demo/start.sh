@@ -24,13 +24,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/load-env.sh"
+load_env_defaults "${SCRIPT_DIR}/.env"
 mkdir -p "${SCRIPT_DIR}/tmp/dingo-pruning-data"
 # The dingo container runs as uid 100. Loosen permissions so the container
 # can write to the bind-mounted directory regardless of host ownership.
 chmod 777 "${SCRIPT_DIR}/tmp/dingo-pruning-data"
 
 echo "Starting archive-demo containers..."
-docker compose -f "${SCRIPT_DIR}/docker-compose.yml" up -d
+docker compose -f "${SCRIPT_DIR}/docker-compose.yml" up -d --build
 
 echo ""
 echo "Archive demo started."

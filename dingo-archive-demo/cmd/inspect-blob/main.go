@@ -33,6 +33,10 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	dir := flag.String("dir", "", "path to badger blob data directory")
 	slot := flag.Uint64("slot", 0, "block slot")
 	hashHex := flag.String("hash", "", "block hash (hex)")
@@ -43,12 +47,12 @@ func main() {
 			os.Stderr,
 			"usage: inspect-blob -dir DIR -slot N -hash HEX",
 		)
-		os.Exit(2)
+		return 2
 	}
 	hash, err := hex.DecodeString(*hashHex)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bad hash: %v\n", err)
-		os.Exit(2)
+		return 2
 	}
 
 	store, err := badger.New(
@@ -60,11 +64,11 @@ func main() {
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "open badger: %v\n", err)
-		os.Exit(2)
+		return 2
 	}
 	if err := store.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "start badger: %v\n", err)
-		os.Exit(2)
+		return 2
 	}
 	defer func() { _ = store.Stop() }()
 
@@ -80,17 +84,18 @@ func main() {
 			*hashHex,
 			len(cbor),
 		)
-		os.Exit(0)
+		return 0
 	case err == nil:
 		fmt.Println("absent: nil cbor")
-		os.Exit(1)
+		return 1
 	case isNotFound(err):
 		fmt.Printf("absent: %v\n", err)
-		os.Exit(1)
+		return 1
 	default:
 		fmt.Fprintf(os.Stderr, "lookup error: %v\n", err)
-		os.Exit(2)
+		return 2
 	}
+	return 2
 }
 
 // isNotFound treats both "not found" and "history expired" errors as the

@@ -26,7 +26,7 @@ RUN python3 -m pip install --break-system-packages uv
 RUN install --directory --owner=root --group=root --mode=0755 /usr/local/src/cardano-node
 
 WORKDIR /usr/local/src
-# Pin to v0.1.0 (abab0b3ce616928cae4ea5c36a41654ec068e2e4)
+# Use the upstream v0.1.0 release tag.
 RUN git clone --branch v0.1.0 --depth 1 https://github.com/cardano-foundation/testnet-generation-tool.git
 
 WORKDIR /usr/local/src/testnet-generation-tool
@@ -34,9 +34,9 @@ RUN uv sync && mkdir -p cardano-node && ln -sf /usr/local/bin ./cardano-node/bin
 
 COPY configurator.sh /
 COPY testnet.yaml /testnet.yaml
-RUN useradd --system --create-home --home-dir /home/cardano --shell /bin/bash cardano && \
+RUN useradd --system --create-home --home-dir /home/cardano --shell /bin/bash --user-group cardano && \
     install --directory --owner=cardano --group=cardano --mode=0755 \
-      /configs/1/configs /configs/utxo-keys /tmp/testnet && \
+      /configs /configs/1 /configs/1/configs /configs/utxo-keys /tmp/testnet && \
     chmod 0755 /configurator.sh && \
     chown -R cardano:cardano /home/cardano /usr/local/src /configurator.sh /testnet.yaml
 

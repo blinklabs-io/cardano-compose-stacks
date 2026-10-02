@@ -132,7 +132,7 @@ for i in 1 2 3; do
     continue
   fi
   echo "final result: $RESULT"
-  OUTCOME=$(echo "$RESULT" | jq -r '.[0].value.outcome') || {
+  OUTCOME=$(echo "$RESULT" | jq -er '.[0].value.outcome | select(type == "string" and length > 0)') || {
     echo "failed to parse final outcome (attempt $i/3), retrying..."
     sleep 10
     continue

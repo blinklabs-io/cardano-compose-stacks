@@ -106,7 +106,7 @@ services:
       - p1-ipc:/ipc
       - logs:/logs
     ports:
-      - "3010:3001"
+      - "${P1_PORT:-3010}:3001"
     networks:
       antithesis:
         ipv4_address: 172.21.0.10
@@ -132,7 +132,7 @@ services:
       - p2-ipc:/ipc
       - logs:/logs
     ports:
-      - "3011:3001"
+      - "${P2_PORT:-3011}:3001"
     networks:
       antithesis:
         ipv4_address: 172.21.0.11
@@ -152,7 +152,7 @@ services:
       - p3-ipc:/ipc
       - logs:/logs
     ports:
-      - "3012:3001"
+      - "${P3_PORT:-3012}:3001"
     networks:
       antithesis:
         ipv4_address: 172.21.0.12
@@ -172,7 +172,7 @@ services:
       - p4-ipc:/ipc
       - logs:/logs
     ports:
-      - "3013:3001"
+      - "${P4_PORT:-3013}:3001"
     networks:
       antithesis:
         ipv4_address: 172.21.0.13
@@ -192,7 +192,7 @@ services:
       - p5-ipc:/ipc
       - logs:/logs
     ports:
-      - "3014:3001"
+      - "${P5_PORT:-3014}:3001"
     networks:
       antithesis:
         ipv4_address: 172.21.0.14
@@ -219,6 +219,7 @@ services:
       TXPUMP_COOLDOWN_MAX: "15"
       TXPUMP_TYPES: "payment,delegation,governance,plutus"
       TXPUMP_STARTUP_TIMEOUT: "0"
+      TXPUMP_LOG_DIR: "/logs"
       TXPUMP_GENESIS_FILE: "/configs/configs/shelley-genesis.json"
       TXPUMP_GENESIS_UTXO_FILE: "/utxo-keys"
       TXPUMP_CONWAY_GENESIS_FILE: "/utxo-keys/genesis/conway-genesis.json"

@@ -153,6 +153,12 @@ func Parse(data []byte) (*Config, error) {
 	if cfg.ActiveSlotsCoeff <= 0 {
 		return nil, errors.New("genesis.Parse: activeSlotsCoeff must be > 0")
 	}
+	if cfg.ActiveSlotsCoeff > 1 {
+		return nil, errors.New("genesis.Parse: activeSlotsCoeff must be <= 1")
+	}
+	if cfg.SecurityParam == 0 {
+		return nil, errors.New("genesis.Parse: securityParam must be > 0")
+	}
 	if cfg.PoolCount <= 0 {
 		return nil, errors.New("genesis.Parse: poolCount must be > 0")
 	}

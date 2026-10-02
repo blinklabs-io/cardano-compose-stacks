@@ -63,7 +63,7 @@ services:
       - minio-data:/data
     networks:
       devnet:
-        ipv4_address: 172.21.0.13
+        ipv4_address: 172.22.0.13
     ports:
       - "${ARCHIVEDEMO_MINIO_PORT:-9100}:9000"
       - "${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101}:9001"
@@ -91,7 +91,13 @@ services:
         echo "bucket ready"
     networks:
       devnet:
-        ipv4_address: 172.21.0.14
+        ipv4_address: 172.22.0.14
+
+  minio-client:
+    image: quay.io/minio/mc:latest
+    profiles: [tools]
+    networks:
+      - devnet
 
   cardano-producer:
     image: ghcr.io/blinklabs-io/cardano-node:11.0.1
@@ -129,7 +135,7 @@ services:
       - "${ARCHIVEDEMO_CARDANO_PORT:-3110}:3001"
     networks:
       devnet:
-        ipv4_address: 172.21.0.10
+        ipv4_address: 172.22.0.10
     healthcheck:
       test: ["CMD-SHELL", "test -S /ipc/node.socket || exit 1"]
       interval: 5s
@@ -171,7 +177,7 @@ services:
       - "${ARCHIVEDEMO_BARK_PORT:-3112}:3003"
     networks:
       devnet:
-        ipv4_address: 172.21.0.11
+        ipv4_address: 172.22.0.11
     healthcheck:
       test: ["CMD-SHELL", "test -S /ipc/dingo.socket || exit 1"]
       interval: 5s
@@ -205,7 +211,7 @@ services:
       - "${ARCHIVEDEMO_DINGO_PRUNING_PORT:-3113}:3001"
     networks:
       devnet:
-        ipv4_address: 172.21.0.12
+        ipv4_address: 172.22.0.12
     healthcheck:
       test: ["CMD-SHELL", "test -S /ipc/dingo.socket || exit 1"]
       interval: 5s
@@ -218,7 +224,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.21.0.0/24
+        - subnet: 172.22.0.0/24
 
 volumes:
   p1-configs:

@@ -41,12 +41,13 @@ COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 PRUNING_DATA_DIR="${SCRIPT_DIR}/tmp/dingo-pruning-data"
 
 source "${SCRIPT_DIR}/load-env.sh"
+source "${SCRIPT_DIR}/scripts/teardown.sh"
 load_env_defaults "${SCRIPT_DIR}/.env"
 
 # LAN address used for the Minio console URL we print to the operator. We pick
 # the source IP for the default route so a viewer on another machine can open
 # the link; falls back to localhost if detection fails.
-ARCHIVEDEMO_HOST="${ARCHIVEDEMO_HOST:-$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')}"
+ARCHIVEDEMO_HOST="${ARCHIVEDEMO_HOST:-$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)}"
 ARCHIVEDEMO_HOST="${ARCHIVEDEMO_HOST:-localhost}"
 
 KEEP_UP=false
@@ -73,15 +74,10 @@ cleanup() {
     return
   fi
   say "Tearing down..."
-  docker compose -f "${COMPOSE_FILE}" down -v 2>/dev/null || true
-  # The pruning data dir is bind-mounted into a container that runs as uid
-  # 100, so files inside may be unreadable to the host user. Wipe via a
-  # one-shot container before letting the host rm finish the parent.
-  if [[ -d "${SCRIPT_DIR}/tmp" ]]; then
-    docker run --rm -v "${SCRIPT_DIR}/tmp":/cleanup alpine \
-      sh -c 'rm -rf /cleanup/* /cleanup/.[!.]* 2>/dev/null || true' \
-      >/dev/null 2>&1 || true
-    rm -rf "${SCRIPT_DIR}/tmp" 2>/dev/null || true
+  if docker compose -f "${COMPOSE_FILE}" down -v 2>/dev/null; then
+    archive_demo_wipe_tmp "${SCRIPT_DIR}/tmp" || true
+  else
+    note "Compose teardown failed; preserving the pruning bind mount."
   fi
 }
 trap cleanup EXIT
@@ -93,7 +89,7 @@ command -v go     >/dev/null || die "go is not installed"
 # Build helpers (demo-fetch lives under cmd/, separate from the test).
 # ---------------------------------------------------------------------------
 say "Building demo-fetch helper..."
-DEMO_BIN_DIR="$(mktemp -d)"
+DEMO_BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/archive-demo.XXXXXX")"
 DEMO_FETCH="${DEMO_BIN_DIR}/demo-fetch"
 INSPECT_BLOB="${DEMO_BIN_DIR}/inspect-blob"
 ( cd "${MODULE_ROOT}" && go build -o "${DEMO_FETCH}" ./cmd/demo-fetch && go build -o "${INSPECT_BLOB}" ./cmd/inspect-blob )
@@ -122,12 +118,16 @@ done
 note "All four services healthy."
 note "Minio console: http://${ARCHIVEDEMO_HOST}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (demo / demodemo)"
 
-# Configure mc once so subsequent ls calls work cheaply.
-docker exec archivedemo-minio mc alias set local http://localhost:9000 demo demodemo >/dev/null 2>&1 || true
-
 # ---------------------------------------------------------------------------
 # Helpers for periodic stats.
 # ---------------------------------------------------------------------------
+minio_mc() {
+  docker compose -f "${COMPOSE_FILE}" run --rm --no-deps \
+    --entrypoint /bin/sh minio-client -c \
+    'mc alias set local http://minio:9000 demo demodemo >/dev/null && exec mc "$@"' \
+    sh "$@"
+}
+
 last_tip_slot() {
   docker logs archivedemo-dingo-pruning 2>&1 \
     | grep -o 'chain extended, new tip: [0-9a-f]\+ at slot [0-9]\+' \
@@ -136,12 +136,12 @@ last_tip_slot() {
 }
 
 minio_object_count() {
-  docker exec archivedemo-minio mc ls --recursive local/dingo-archive 2>/dev/null | wc -l
+  minio_mc ls --recursive local/dingo-archive 2>/dev/null | wc -l
 }
 
 minio_block_objects() {
   # Block CBOR keys begin with "bp" which is hex-encoded as "6270".
-  docker exec archivedemo-minio mc ls --recursive local/dingo-archive 2>/dev/null \
+  minio_mc ls --recursive local/dingo-archive 2>/dev/null \
     | awk '{print $NF}' | grep -c '^6270' || true
 }
 
@@ -221,6 +221,8 @@ case "${fetch_exit}" in
       exit 0
     fi
     docker compose -f "${COMPOSE_FILE}" stop dingo-pruning >/dev/null
+    archive_demo_make_readable "${PRUNING_DATA_DIR}" || die "could not make the Badger bind mount readable"
+    archive_demo_wait_for_lock_release "${PRUNING_DATA_DIR}/blob/LOCK" 30 || die "Badger lock was not released after stopping dingo-pruning"
     read -r target_slot target_hash < "${POINT_FILE}"
     if "${INSPECT_BLOB}" -dir "${PRUNING_DATA_DIR}" \
       -slot "${target_slot}" -hash "${target_hash}"; then

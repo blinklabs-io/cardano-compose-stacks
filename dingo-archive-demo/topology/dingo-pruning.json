@@ -3,7 +3,7 @@
     {
       "accessPoints": [
         {
-          "address": "172.21.0.10",
+          "address": "172.22.0.10",
           "port": 3001
         }
       ],

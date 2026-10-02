@@ -76,14 +76,15 @@ func TestArchiveProxy(t *testing.T) {
 	// Step 1b: poll until History Expiry has had time to act on candidateSlot.
 	// inspect-blob can't run while the container holds the badger lockfile,
 	// so we wait until the expiry tick frequency (5s) has had several
-	// cycles past candidateSlot+stabilityWindow.
+	// cycles past candidateSlot+stabilityWindow. The first wait reaches 400;
+	// wait for 430 so this assertion exercises additional expiry rounds.
 	const candidateSlot = uint64(50)
 	require.Eventually(t, func() bool {
 		tip, err := archivedemo.GetTip(pruning, archivedemo.DefaultNetworkMagic)
 		if err != nil {
 			return false
 		}
-		return tip.Slot >= candidateSlot+stabilityWindow+30
+		return tip.Slot >= candidateSlot+stabilityWindow+80
 	}, 3*time.Minute, 5*time.Second, "chain did not advance far enough for history expiry to act")
 
 	// Step 2: resolve (slot, hash) of the first block at or after candidateSlot
@@ -113,11 +114,17 @@ func TestArchiveProxy(t *testing.T) {
 	// Step 4 (assertion 3): object present in Minio bucket.
 	s3Client := newMinioClient(t)
 	key := blobKeyForBlock(point.Slot, point.Hash)
-	_, err = s3Client.HeadObject(context.Background(), &s3.HeadObjectInput{
+	s3Ctx, s3Cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer s3Cancel()
+	_, err = s3Client.HeadObject(s3Ctx, &s3.HeadObjectInput{
 		Bucket: aws.String("dingo-archive"),
 		Key:    aws.String(key),
 	})
 	require.NoError(t, err, "block %q should be present in Minio bucket", key)
+
+	if os.Getenv("ARCHIVEDEMO_KEEP_UP") == "true" {
+		t.Skip("local Badger verification stops dingo-pruning; skipped to keep the stack running")
+	}
 
 	// Step 5 (assertion 2): stop dingo-pruning, run inspect-blob.
 	// We deliberately do not restart it: dingo currently fails to

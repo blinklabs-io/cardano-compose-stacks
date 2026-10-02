@@ -396,10 +396,6 @@ func fileIdentity(info os.FileInfo) string {
 	return fmt.Sprintf("%d:%d", stat.Dev, stat.Ino)
 }
 
-func isRotatedLog(path string) bool {
-	return rotatedLogAge(path) > 0
-}
-
 func rotatedLogAge(path string) int {
 	base := filepath.Base(path)
 	marker := strings.LastIndex(base, ".log.")
@@ -512,7 +508,7 @@ func (a *Analyzer) reportSafetyAssertions(snap *MetricsSnapshot) {
 			nodeID := fmt.Sprintf("p%d", i)
 			count := snap.BlocksByNode[nodeID]
 			share := float64(count) / float64(snap.TotalBlocksForged)
-			Sometimes(share <= 0.6, "chain-quality", map[string]interface{}{
+			Sometimes(share <= 0.6, "chain-quality-"+nodeID, map[string]interface{}{
 				"node_id":     nodeID,
 				"share":       share,
 				"block_count": count,
@@ -527,7 +523,7 @@ func (a *Analyzer) reportLivenessAssertions(snap *MetricsSnapshot) {
 	for i := 1; i <= a.cfg.Pools; i++ {
 		nodeID := fmt.Sprintf("p%d", i)
 		count := snap.BlocksByNode[nodeID]
-		Sometimes(count > 0, "pool-produced-block", map[string]interface{}{
+		Sometimes(count > 0, "pool-produced-block-"+nodeID, map[string]interface{}{
 			"node_id":     nodeID,
 			"block_count": count,
 		})

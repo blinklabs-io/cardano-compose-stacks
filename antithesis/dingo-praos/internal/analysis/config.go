@@ -148,12 +148,6 @@ func LoadConfig() (*Config, error) {
 		}
 		// Only apply genesis values when the env var was NOT set.
 		if os.Getenv("ANALYSIS_POOLS") == "" {
-			if gcfg.PoolCount <= 0 {
-				return nil, fmt.Errorf(
-					"ANALYSIS_GENESIS_FILE: poolCount must be > 0, got %d",
-					gcfg.PoolCount,
-				)
-			}
 			cfg.Pools = gcfg.PoolCount
 		}
 		if os.Getenv("ANALYSIS_MAX_FORK_DEPTH") == "" &&

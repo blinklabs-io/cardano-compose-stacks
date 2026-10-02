@@ -21,15 +21,19 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/scripts/teardown.sh"
 
 echo "Stopping archive-demo..."
 status=0
 docker compose -f "${SCRIPT_DIR}/docker-compose.yml" down -v || status=$?
-if [[ -d "${SCRIPT_DIR}/tmp" ]]; then
-  docker run --rm --user 0 -v "${SCRIPT_DIR}/tmp":/cleanup alpine \
-    sh -c 'rm -rf /cleanup/* /cleanup/.[!.]* 2>/dev/null || true' \
-    >/dev/null 2>&1 || status=$?
-  rm -rf "${SCRIPT_DIR}/tmp" 2>/dev/null || status=$?
+if [[ "${status}" -eq 0 ]]; then
+  archive_demo_wipe_tmp "${SCRIPT_DIR}/tmp" || status=$?
+else
+  echo "Compose teardown failed; preserving the pruning bind mount." >&2
 fi
-echo "Stopped."
+if [[ "${status}" -eq 0 ]]; then
+  echo "Stopped."
+else
+  echo "Stop failed (exit ${status})." >&2
+fi
 exit "${status}"

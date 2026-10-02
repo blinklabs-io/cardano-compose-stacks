@@ -31,6 +31,7 @@ PRUNING_DATA_DIR="${SCRIPT_DIR}/tmp/dingo-pruning-data"
 COMPOSE_STARTED=false
 
 source "${SCRIPT_DIR}/load-env.sh"
+source "${SCRIPT_DIR}/scripts/teardown.sh"
 load_env_defaults "${SCRIPT_DIR}/.env"
 export ARCHIVEDEMO_DINGO_ARCHIVE_ADDR="${ARCHIVEDEMO_DINGO_ARCHIVE_ADDR:-localhost:${ARCHIVEDEMO_DINGO_ARCHIVE_PORT:-3111}}"
 export ARCHIVEDEMO_DINGO_PRUNING_ADDR="${ARCHIVEDEMO_DINGO_PRUNING_ADDR:-localhost:${ARCHIVEDEMO_DINGO_PRUNING_PORT:-3113}}"
@@ -67,12 +68,12 @@ cleanup() {
     docker compose -f "${COMPOSE_FILE}" logs --tail=200 2>/dev/null || true
   fi
   log "Tearing down..."
-  docker compose -f "${COMPOSE_FILE}" down -v 2>/dev/null || true
-  if [[ -d "${SCRIPT_DIR}/tmp" ]]; then
-    docker run --rm --user 0 -v "${SCRIPT_DIR}/tmp":/cleanup alpine \
-      sh -c 'rm -rf /cleanup/* /cleanup/.[!.]* 2>/dev/null || true' \
-      >/dev/null 2>&1 || true
-    rm -rf "${SCRIPT_DIR}/tmp" 2>/dev/null || true
+  if docker compose -f "${COMPOSE_FILE}" down -v 2>/dev/null; then
+    if [[ -d "${SCRIPT_DIR}/tmp" ]]; then
+      archive_demo_wipe_tmp "${SCRIPT_DIR}/tmp" || true
+    fi
+  else
+    warn "Compose teardown failed; preserving the pruning bind mount."
   fi
 }
 trap cleanup EXIT
@@ -81,7 +82,7 @@ command -v docker >/dev/null || die "docker is not installed"
 command -v go     >/dev/null || die "go is not installed"
 
 log "Building inspect-blob helper..."
-INSPECT_DIR="$(mktemp -d)"
+INSPECT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/archive-demo-test.XXXXXX")"
 INSPECT_BIN="${INSPECT_DIR}/inspect-blob"
 ( cd "${MODULE_ROOT}" && go build -o "${INSPECT_BIN}" ./cmd/inspect-blob )
 
@@ -112,5 +113,6 @@ log "Running tests..."
 cd "${MODULE_ROOT}"
 ARCHIVEDEMO_INSPECT_BIN="${INSPECT_BIN}" \
 ARCHIVEDEMO_PRUNING_DATA_DIR="${PRUNING_DATA_DIR}" \
+ARCHIVEDEMO_KEEP_UP="${KEEP_UP}" \
 go test -tags archive_demo -count=1 -v -timeout 15m \
   ./internal/archivedemo/scenarios/ ${TEST_ARGS[@]+"${TEST_ARGS[@]}"}

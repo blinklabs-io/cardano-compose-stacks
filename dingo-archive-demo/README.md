@@ -13,6 +13,9 @@ node expires its local copies; Bark serves those blocks on demand.
 ./stop.sh          # stop and remove the stack
 ```
 
+`./run-tests.sh --keep-up` leaves the stack running and skips the offline
+Badger check, which requires stopping `dingo-pruning`.
+
 The integration scenario needs Docker Compose and uses the default host ports
 shown below. It keeps the Docker-backed Go test behind the `archive_demo` build
 tag so a regular `go test ./...` does not try to manage Docker containers.

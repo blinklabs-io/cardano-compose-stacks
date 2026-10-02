@@ -39,6 +39,16 @@ fi
 read_yaml_value() {
   local key="$1"
   awk -v key="${key}" '
+    BEGIN { document = 1; saw_separator = 0 }
+    $1 == "---" {
+      if (saw_separator) {
+        document++
+      } else {
+        saw_separator = 1
+      }
+      next
+    }
+    document != 1 { next }
     $1 == key ":" {
       value = $0
       sub(/^[^:]*:[[:space:]]*/, "", value)
