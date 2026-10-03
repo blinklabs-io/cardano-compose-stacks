@@ -1,0 +1,250 @@
+name: antithesis
+
+on:
+  schedule:
+    - cron: '5 5,17 * * *'
+  push:
+    branches: [main]
+    paths:
+      - antithesis/dingo-praos/**
+      - .github/workflows/antithesis.yml
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Test duration in hours (1-8)'
+        type: string
+        default: '1'
+      no_faults:
+        description: 'Disable fault injection'
+        type: boolean
+        default: false
+      poll_results:
+        description: 'Poll Antithesis until the test completes (default: submit and exit)'
+        type: boolean
+        default: false
+      moog_tag:
+        description: 'Moog CLI release tag'
+        type: string
+        default: 'v0.5.1.5'
+
+concurrency:
+  group: antithesis
+  cancel-in-progress: false
+
+jobs:
+  build-images:
+    if: github.ref == 'refs/heads/main' && github.repository == 'blinklabs-io/cardano-compose-stacks'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1 https://github.com/docker/setup-buildx-action/releases/tag/v4.4.1
+      - name: Validate Antithesis testnet wiring
+        run: antithesis/dingo-praos/scripts/validate-config.sh
+      - name: Login to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0 https://github.com/docker/login-action/releases/tag/v4.6.0
+        with:
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+
+      - id: configurator-meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0 https://github.com/docker/metadata-action/releases/tag/v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/dingo-configurator
+          flavor: latest=false
+          tags: type=raw,value=main
+      - name: Build and push configurator image
+        id: configurator-push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0 https://github.com/docker/build-push-action/releases/tag/v7.4.0
+        with:
+          context: antithesis/dingo-praos
+          file: antithesis/dingo-praos/Dockerfile.configurator
+          outputs: type=registry,push=true
+          platforms: linux/amd64
+          tags: ${{ steps.configurator-meta.outputs.tags }}
+          labels: ${{ steps.configurator-meta.outputs.labels }}
+      - name: Attest configurator image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2 https://github.com/actions/attest/releases/tag/v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/dingo-configurator
+          subject-digest: ${{ steps.configurator-push.outputs.digest }}
+          push-to-registry: true
+
+      - id: analysis-meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0 https://github.com/docker/metadata-action/releases/tag/v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/dingo-analysis
+          flavor: latest=false
+          tags: type=raw,value=main
+      - name: Build and push analysis image
+        id: analysis-push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0 https://github.com/docker/build-push-action/releases/tag/v7.4.0
+        with:
+          context: antithesis/dingo-praos
+          file: antithesis/dingo-praos/Dockerfile.analysis
+          outputs: type=registry,push=true
+          platforms: linux/amd64
+          tags: ${{ steps.analysis-meta.outputs.tags }}
+          labels: ${{ steps.analysis-meta.outputs.labels }}
+      - name: Attest analysis image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2 https://github.com/actions/attest/releases/tag/v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/dingo-analysis
+          subject-digest: ${{ steps.analysis-push.outputs.digest }}
+          push-to-registry: true
+
+  check-moog-secrets:
+    if: github.ref == 'refs/heads/main'
+    name: Check Moog secrets
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - id: check
+        env:
+          MOOG_REQUESTER_WALLET: ${{ secrets.MOOG_REQUESTER_WALLET }}
+          MOOG_REQUESTER: ${{ vars.MOOG_REQUESTER }}
+        run: |
+          if [ -n "$MOOG_REQUESTER_WALLET" ] && [ -n "$MOOG_REQUESTER" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "MOOG_REQUESTER_WALLET or MOOG_REQUESTER not configured - skipping submission"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  submit-antithesis:
+    name: Submit Antithesis test via Moog
+    needs: [build-images, check-moog-secrets]
+    if: github.repository == 'blinklabs-io/cardano-compose-stacks' && needs['check-moog-secrets'].outputs.available == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 600
+    env:
+      MOOG_WALLET_FILE: wallet.json
+      MOOG_MPFS_HOST: ${{ vars.MOOG_MPFS_HOST || 'https://mpfs.plutimus.com' }}
+      MOOG_PLATFORM: github
+      MOOG_REQUESTER: ${{ vars.MOOG_REQUESTER }}
+      MOOG_TOKEN_ID: ${{ vars.MOOG_TOKEN_ID || '21c523c3b4565f1fc1ad7e54e82ca976f60997d8e7e9946826813fabf341069b' }}
+      DURATION: ${{ inputs.duration || '1' }}
+    steps:
+      - name: Validate duration
+        id: duration
+        run: |
+          if [[ ! "$DURATION" =~ ^[0-9]+$ ]]; then
+            echo "::error::Duration must be a positive integer number of hours"
+            exit 1
+          fi
+          HOURS=$((10#$DURATION))
+          if ((HOURS < 1)); then
+            echo "::error::Duration must be at least one hour"
+            exit 1
+          fi
+          if ((HOURS > 8)); then
+            echo "::error::Duration must be no more than 8 hours"
+            exit 1
+          fi
+          echo "hours=$HOURS" >> "$GITHUB_OUTPUT"
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve Moog release
+        id: moog-release
+        run: |
+          TAG="$MOOG_TAG_INPUT"
+          VERSION="${TAG#v}"
+          TAG="v${VERSION}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          MOOG_TAG_INPUT: ${{ inputs.moog_tag || 'v0.5.1.5' }}
+      - name: Download and install Moog
+        run: |
+          set -euo pipefail
+          ASSET="moog-${MOOG_VERSION}-x86_64-linux-musl.tar.gz"
+          CHECKSUMS="moog-${MOOG_VERSION}-x86_64-linux.SHA256SUMS"
+          gh release download "$MOOG_TAG" \
+            -R cardano-foundation/moog \
+            -p "$ASSET" \
+            -p "$CHECKSUMS"
+          grep -F "  $ASSET" "$CHECKSUMS" | sha256sum --check --strict -
+          tar xzf "$ASSET"
+          sudo install -m 0755 moog /usr/local/bin/moog
+          moog --version | grep -F "moog $MOOG_VERSION"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MOOG_TAG: ${{ steps.moog-release.outputs.tag }}
+          MOOG_VERSION: ${{ steps.moog-release.outputs.version }}
+      - name: Configure wallet
+        run: echo "$MOOG_WALLET" | base64 -d > wallet.json
+        env:
+          MOOG_WALLET: ${{ secrets.MOOG_REQUESTER_WALLET }}
+      - name: Submit test to Antithesis
+        id: request
+        run: |
+          set -euo pipefail
+          NO_FAULTS_FLAG=""
+          if [ "$NO_FAULTS" = "true" ]; then
+            NO_FAULTS_FLAG="--no-faults"
+          fi
+          TESTNET_DIR="antithesis/dingo-praos/testnets/dingo-praos"
+          if ! CENSUS=$(moog facts test-runs --whose "$MOOG_REQUESTER") \
+            || ! TRY=$(echo "$CENSUS" | jq -e \
+              --arg commit "$GITHUB_SHA" \
+              --arg directory "$TESTNET_DIR" \
+              --arg platform "$MOOG_PLATFORM" \
+              --arg repository "$GITHUB_REPOSITORY" \
+              --arg requester "$MOOG_REQUESTER" \
+              'if type != "array" then error("census is not an array") else . end
+              | map(select(
+                .key.type == "test-run"
+                and .key.commitId == $commit
+                and .key.directory == $directory
+                and .key.platform == $platform
+                and ((.key.repository.organization + "/" + .key.repository.repo) == $repository)
+                and .key.requester == $requester
+              )) | length'); then
+            echo "::error::Moog test-run census unreadable"
+            exit 1
+          fi
+          TRY=$((TRY + 1))
+          echo "Submitting Antithesis test for ${GITHUB_REPOSITORY}@main (try $TRY, duration ${DURATION_HOURS}h)..."
+          # shellcheck disable=SC2086 # NO_FAULTS_FLAG intentionally word-splits
+          RESULT=$(moog requester create-test \
+            -d "$TESTNET_DIR" \
+            -c "${GITHUB_SHA}" \
+            -r "${GITHUB_REPOSITORY}" \
+            --try "$TRY" \
+            -t "$DURATION_HOURS" \
+            $NO_FAULTS_FLAG)
+          echo "$RESULT"
+          ID=$(echo "$RESULT" | jq -e .value.testRunId | jq -r .)
+          TXID=$(echo "$RESULT" | jq -e .txHash | jq -r .)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "txHash=$TXID" >> "$GITHUB_OUTPUT"
+          echo "Launched Antithesis test run: $ID (tx $TXID)"
+        env:
+          MOOG_GITHUB_PAT: ${{ github.token }}
+          NO_FAULTS: ${{ inputs.no_faults || 'false' }}
+          DURATION_HOURS: ${{ steps.duration.outputs.hours }}
+      - name: Poll for results
+        if: inputs.poll_results == true
+        run: |
+          timeout $(((DURATION_HOURS + 1) * 3600)) \
+            ./antithesis/dingo-praos/scripts/wait-for-test.sh \
+            "$ANTITHESIS_TEST_RUN_ID"
+        env:
+          DURATION_HOURS: ${{ steps.duration.outputs.hours }}
+          ANTITHESIS_TEST_RUN_ID: ${{ steps.request.outputs.id }}
+      - name: Clean up wallet
+        if: always()
+        run: rm -f wallet.json

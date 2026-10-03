@@ -19,6 +19,11 @@ This docker-compose setup provides a comprehensive environment for running Carda
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
 - **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node, cardano-node-api, and Bursa, and provides a preloaded service health dashboard.
 
+## Additional stacks
+
+- [Dingo Praos Antithesis harness](antithesis/dingo-praos/README.md)
+- [Dingo archive node demo](dingo-archive-demo/README.md)
+
 ## How to Start Services
 
 Because each service has defined dependency that means starting a service will also start it's dependencies.
