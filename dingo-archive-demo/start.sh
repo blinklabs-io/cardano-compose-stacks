@@ -26,6 +26,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/load-env.sh"
 load_env_defaults "${SCRIPT_DIR}/.env"
+archive_demo_validate_minio_binding
 mkdir -p "${SCRIPT_DIR}/tmp/dingo-pruning-data"
 # The dingo container runs as uid 100. Loosen permissions so the container
 # can write to the bind-mounted directory regardless of host ownership.
@@ -41,7 +42,7 @@ echo "  Dingo archive:    localhost:${ARCHIVEDEMO_DINGO_ARCHIVE_PORT:-3111}"
 echo "  Bark gRPC:        localhost:${ARCHIVEDEMO_BARK_PORT:-3112}"
 echo "  Dingo expiry:     localhost:${ARCHIVEDEMO_DINGO_PRUNING_PORT:-3113}"
 echo "  Minio S3:         localhost:${ARCHIVEDEMO_MINIO_PORT:-9100}"
-echo "  Minio console:    localhost:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (demo/demodemo)"
+echo "  Minio console:    http://$(archive_demo_minio_console_host):${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (${ARCHIVEDEMO_MINIO_ROOT_USER:-demo}/${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo})"
 echo ""
 echo "View logs:  docker compose -f ${SCRIPT_DIR}/docker-compose.yml logs -f"
 echo "Stop:       ${SCRIPT_DIR}/stop.sh"

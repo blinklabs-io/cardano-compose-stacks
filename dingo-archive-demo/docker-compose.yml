@@ -38,6 +38,9 @@
 #   ARCHIVEDEMO_DINGO_PRUNING_PORT    (default: 3113)
 #   ARCHIVEDEMO_MINIO_PORT            (default: 9100)
 #   ARCHIVEDEMO_MINIO_CONSOLE_PORT    (default: 9101)
+#   ARCHIVEDEMO_MINIO_BIND_ADDRESS    (default: 127.0.0.1)
+#   ARCHIVEDEMO_MINIO_ROOT_USER       (default: demo)
+#   ARCHIVEDEMO_MINIO_ROOT_PASSWORD   (default: demodemo)
 
 services:
   configurator:
@@ -57,16 +60,16 @@ services:
     container_name: archivedemo-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: demo
-      MINIO_ROOT_PASSWORD: demodemo
+      MINIO_ROOT_USER: ${ARCHIVEDEMO_MINIO_ROOT_USER:-demo}
+      MINIO_ROOT_PASSWORD: ${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo}
     volumes:
       - minio-data:/data
     networks:
       devnet:
         ipv4_address: 172.22.0.13
     ports:
-      - "${ARCHIVEDEMO_MINIO_PORT:-9100}:9000"
-      - "${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101}:9001"
+      - "${ARCHIVEDEMO_MINIO_BIND_ADDRESS:-127.0.0.1}:${ARCHIVEDEMO_MINIO_PORT:-9100}:9000"
+      - "${ARCHIVEDEMO_MINIO_BIND_ADDRESS:-127.0.0.1}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101}:9001"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/ready || exit 1"]
       interval: 5s
@@ -86,9 +89,12 @@ services:
       - /bin/sh
       - -c
       - |
-        mc alias set local http://minio:9000 demo demodemo && \
+        mc alias set local http://minio:9000 "${ARCHIVEDEMO_MINIO_ROOT_USER:-demo}" "${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo}" && \
         mc mb --ignore-existing local/dingo-archive && \
         echo "bucket ready"
+    environment:
+      ARCHIVEDEMO_MINIO_ROOT_USER: ${ARCHIVEDEMO_MINIO_ROOT_USER:-demo}
+      ARCHIVEDEMO_MINIO_ROOT_PASSWORD: ${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo}
     networks:
       devnet:
         ipv4_address: 172.22.0.14
@@ -96,6 +102,9 @@ services:
   minio-client:
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     profiles: [tools]
+    environment:
+      ARCHIVEDEMO_MINIO_ROOT_USER: ${ARCHIVEDEMO_MINIO_ROOT_USER:-demo}
+      ARCHIVEDEMO_MINIO_ROOT_PASSWORD: ${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo}
     networks:
       - devnet
 
@@ -163,8 +172,8 @@ services:
       CARDANO_DATABASE_PATH: /data/db
       CARDANO_NODE_SOCKET_PATH: /ipc/dingo.socket
       DINGO_DEBUG: "1"
-      AWS_ACCESS_KEY_ID: demo
-      AWS_SECRET_ACCESS_KEY: demodemo
+      AWS_ACCESS_KEY_ID: ${ARCHIVEDEMO_MINIO_ROOT_USER:-demo}
+      AWS_SECRET_ACCESS_KEY: ${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo}
       AWS_REGION: us-east-1
     volumes:
       - p1-configs:/configs:ro

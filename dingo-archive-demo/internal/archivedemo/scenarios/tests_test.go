@@ -183,11 +183,19 @@ func newMinioClient(t *testing.T) *s3.Client {
 	if endpoint == "" {
 		endpoint = "http://localhost:9100"
 	}
+	user := os.Getenv("ARCHIVEDEMO_MINIO_ROOT_USER")
+	if user == "" {
+		user = "demo"
+	}
+	password := os.Getenv("ARCHIVEDEMO_MINIO_ROOT_PASSWORD")
+	if password == "" {
+		password = "demodemo"
+	}
 	cfg, err := awsconfig.LoadDefaultConfig(
 		context.Background(),
 		awsconfig.WithRegion("us-east-1"),
 		awsconfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider("demo", "demodemo", ""),
+			credentials.NewStaticCredentialsProvider(user, password, ""),
 		),
 	)
 	require.NoError(t, err)

@@ -43,12 +43,9 @@ PRUNING_DATA_DIR="${SCRIPT_DIR}/tmp/dingo-pruning-data"
 source "${SCRIPT_DIR}/load-env.sh"
 source "${SCRIPT_DIR}/scripts/teardown.sh"
 load_env_defaults "${SCRIPT_DIR}/.env"
+archive_demo_validate_minio_binding
 
-# LAN address used for the Minio console URL we print to the operator. We pick
-# the source IP for the default route so a viewer on another machine can open
-# the link; falls back to localhost if detection fails.
-ARCHIVEDEMO_HOST="${ARCHIVEDEMO_HOST:-$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)}"
-ARCHIVEDEMO_HOST="${ARCHIVEDEMO_HOST:-localhost}"
+ARCHIVEDEMO_HOST="$(archive_demo_minio_console_host)"
 
 KEEP_UP=false
 for arg in "$@"; do
@@ -69,7 +66,7 @@ cleanup() {
   fi
   if [[ "${KEEP_UP}" == "true" ]] && [[ ${exit_code} -eq 0 ]]; then
     say "Demo finished. Stack left running (--keep-up)."
-    note "Minio console:  http://${ARCHIVEDEMO_HOST}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (demo / demodemo)"
+    note "Minio console:  http://${ARCHIVEDEMO_HOST}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (${ARCHIVEDEMO_MINIO_ROOT_USER:-demo} / ${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo})"
     note "Stop:           ${SCRIPT_DIR}/stop.sh"
     return
   fi
@@ -116,7 +113,7 @@ while true; do
   sleep 3
 done
 note "All four services healthy."
-note "Minio console: http://${ARCHIVEDEMO_HOST}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (demo / demodemo)"
+note "Minio console: http://${ARCHIVEDEMO_HOST}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT:-9101} (${ARCHIVEDEMO_MINIO_ROOT_USER:-demo} / ${ARCHIVEDEMO_MINIO_ROOT_PASSWORD:-demodemo})"
 
 # ---------------------------------------------------------------------------
 # Helpers for periodic stats.
@@ -124,7 +121,7 @@ note "Minio console: http://${ARCHIVEDEMO_HOST}:${ARCHIVEDEMO_MINIO_CONSOLE_PORT
 minio_mc() {
   docker compose -f "${COMPOSE_FILE}" run --rm --no-deps \
     --entrypoint /bin/sh minio-client -c \
-    'mc alias set local http://minio:9000 demo demodemo >/dev/null && exec mc "$@"' \
+    'mc alias set local http://minio:9000 "$ARCHIVEDEMO_MINIO_ROOT_USER" "$ARCHIVEDEMO_MINIO_ROOT_PASSWORD" >/dev/null && exec mc "$@"' \
     sh "$@"
 }
 

@@ -43,5 +43,9 @@ MinIO but absent from the pruning node's local Badger store.
 | MinIO API | 9100 | `ARCHIVEDEMO_MINIO_PORT` |
 | MinIO console | 9101 | `ARCHIVEDEMO_MINIO_CONSOLE_PORT` |
 
-MinIO credentials are `demo` / `demodemo`. Set `DINGO_IMAGE` to use a
-different Dingo container image.
+Copy `.env.example` to `.env` to configure the stack. MinIO binds to
+`127.0.0.1` by default, so its API and console are reachable only from the host.
+For LAN access, set `ARCHIVEDEMO_MINIO_BIND_ADDRESS=0.0.0.0` and change both
+MinIO credentials first; the start, demo, and test scripts reject a non-loopback
+binding with either default credential. Set `DINGO_IMAGE` to use a different
+Dingo container image.
