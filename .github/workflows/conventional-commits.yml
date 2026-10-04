@@ -1,0 +1,9 @@
+# Generated automatically by org-governance-bot. Do not edit manually.
+name: "Conventional Commits"
+
+on:
+  pull_request:
+
+jobs:
+  orchestrate:
+    uses: blinklabs-io/actions/.github/workflows/reuseable-conventional-commits.yml@main
