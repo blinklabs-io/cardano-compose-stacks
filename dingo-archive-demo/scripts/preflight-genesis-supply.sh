@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+# Copyright 2026 Blink Labs Software
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Checks a testnet.yaml spec's genesis allocation against its max lovelace
+# supply before a Docker-backed suite starts. The configurator
+# (cardano-foundation/testnet-generation-tool) creates both a staked and an
+# unstaked genesis address per delegated-supply pot, so a spec's genesis
+# circulating supply is 2x delegatedSupply regardless of poolCount. Dingo's
+# genesis-reserve guard (ledger/genesis_network_state.go) rejects a chain
+# whose circulating supply exceeds maxLovelaceSupply; without this
+# preflight, that misconfiguration only surfaces as an opaque node-health
+# timeout minutes into a Docker-backed suite.
+#
+# Usage: preflight-genesis-supply.sh <testnet.yaml>
+
+set -euo pipefail
+
+SELF="$(basename "${BASH_SOURCE[0]}")"
+TESTNET_YAML="${1:?usage: ${SELF} <testnet.yaml>}"
+
+if [[ ! -f "${TESTNET_YAML}" ]]; then
+  echo "${SELF}: ${TESTNET_YAML}: no such file" >&2
+  exit 1
+fi
+
+read_yaml_value() {
+  local key="$1"
+  local target_document="$2"
+  awk -v key="${key}" -v target_document="${target_document}" '
+    BEGIN { document = 1; saw_separator = 0; matches = 0 }
+    $1 == "---" {
+      if (saw_separator) {
+        document++
+      } else {
+        saw_separator = 1
+      }
+      next
+    }
+    document != target_document { next }
+    $1 == key ":" {
+      value = $0
+      sub(/^[^:]*:[[:space:]]*/, "", value)
+      sub(/[[:space:]]*#.*/, "", value)
+      sub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^["\047]|["\047]$/, "", value)
+      matches++
+    }
+    END { if (matches == 1) print value }
+  ' "${TESTNET_YAML}"
+}
+
+delegated_supply="$(read_yaml_value delegatedSupply 1)"
+max_lovelace_supply="$(read_yaml_value maxLovelaceSupply 3)"
+
+if [[ -z "${delegated_supply}" || -z "${max_lovelace_supply}" ]]; then
+  echo "${SELF}: could not read delegatedSupply/maxLovelaceSupply from ${TESTNET_YAML}" >&2
+  exit 1
+fi
+
+if [[ ! "${delegated_supply}" =~ ^[0-9]+$ || ! "${max_lovelace_supply}" =~ ^[0-9]+$ || \
+  ${#delegated_supply} -gt 18 || ${#max_lovelace_supply} -gt 18 ]]; then
+  echo "${SELF}: delegatedSupply/maxLovelaceSupply must be unsigned decimal integers within range" >&2
+  exit 1
+fi
+
+circulating=$(( 10#${delegated_supply} * 2 ))
+if (( circulating > 10#${max_lovelace_supply} )); then
+  echo "${SELF}: ${TESTNET_YAML} would generate ${circulating} lovelace of genesis" \
+    "UTxOs (delegatedSupply=${delegated_supply} x2 for staked+unstaked addresses)," \
+    "exceeding maxLovelaceSupply=${max_lovelace_supply}" >&2
+  exit 1
+fi

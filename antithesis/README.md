@@ -17,3 +17,9 @@ A 5 pools testnet using cardano-node version 10.5.4 testing consistency between 
 ## Testnet
 
 - **Pools**: 5
+
+## Dingo Praos testnet
+
+The Dingo mixed network harness lives in
+[`dingo-praos/`](dingo-praos/README.md). It is a separate Moog testnet and
+does not replace the UTxO-HD consistency stack described above.
