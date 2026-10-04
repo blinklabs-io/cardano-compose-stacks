@@ -33,6 +33,11 @@ The local compose file uses the Dingo `main-antithesis` image and the
 `cardano-txpump:main` image. The Moog definition is under
 `testnets/dingo-praos/` and adds fault handling and log analysis.
 
+The published Antithesis helper images support `linux/amd64` and `linux/arm64`.
+Docker Compose selects the host architecture when it pulls multi-architecture
+images, so the local harness can run natively on ARM64 once the Dingo and
+txpump image manifests include that platform.
+
 ## Moog workflow
 
 The scheduled and manually dispatched workflow runs from this repository's

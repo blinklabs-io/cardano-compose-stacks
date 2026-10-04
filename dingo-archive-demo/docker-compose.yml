@@ -53,7 +53,7 @@ services:
   minio:
     # minio/minio is no longer publicly pullable from Docker Hub; quay.io
     # is MinIO's other public registry for the same images.
-    image: quay.io/minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-06T17-38-46Z
     container_name: archivedemo-minio
     command: server /data --console-address ":9001"
     environment:
@@ -77,7 +77,7 @@ services:
   minio-init:
     # See the minio service comment above: quay.io/minio/mc replaces
     # minio/mc, which is no longer publicly pullable from Docker Hub.
-    image: quay.io/minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: archivedemo-minio-init
     depends_on:
       minio:
@@ -94,7 +94,7 @@ services:
         ipv4_address: 172.22.0.14
 
   minio-client:
-    image: quay.io/minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     profiles: [tools]
     networks:
       - devnet
