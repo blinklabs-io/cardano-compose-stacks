@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ! command -v jq >/dev/null; then
+  echo "jq is required to validate Moog image constraints" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TMP_CONFIG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/antithesis-config.XXXXXX")"
 trap 'rm -rf "$TMP_CONFIG_DIR"' EXIT
@@ -14,6 +19,18 @@ validate_compose() {
   fi
   INTERNAL_NETWORK="${INTERNAL_NETWORK:-false}" \
     docker compose -f "$compose_file" config >"$rendered"
+
+  if [[ "$moog" == "true" ]]; then
+    local rendered_json="${TMP_CONFIG_DIR}/rendered-moog.json"
+    INTERNAL_NETWORK="${INTERNAL_NETWORK:-false}" \
+      docker compose -f "$compose_file" config --format json >"$rendered_json"
+    jq -e '.services | to_entries | all(.[];
+      .value.platform == "linux/amd64" and .value.pull_policy == "never")' \
+      "$rendered_json" >/dev/null || {
+      echo "Moog services must use preloaded linux/amd64 images without registry pulls" >&2
+      return 1
+    }
+  fi
 
   grep -Eq 'CARDANO_PRIVATE_BIND_ADDR:[[:space:]]*"?0\.0\.0\.0"?' "$rendered"
   grep -Eq 'TXPUMP_STARTUP_TIMEOUT:[[:space:]]*"?0"?' "$rendered"
