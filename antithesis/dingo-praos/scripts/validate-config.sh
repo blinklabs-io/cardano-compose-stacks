@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ! command -v jq >/dev/null; then
+  echo "jq is required to validate Moog image constraints" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TMP_CONFIG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/antithesis-config.XXXXXX")"
 trap 'rm -rf "$TMP_CONFIG_DIR"' EXIT
