@@ -15,6 +15,7 @@
 package genesis
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 const testYAML = `# Test configuration
@@ -122,6 +124,30 @@ func TestParseInvalidYAML(t *testing.T) {
 	_, err := Parse([]byte("---\nfoo: [\n"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "genesis.Parse:")
+}
+
+func TestNodeTraceConfig(t *testing.T) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(thisFile), "..", "..", "testnet.yaml"))
+	require.NoError(t, err)
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	var config map[string]interface{}
+	for range 6 {
+		config = nil
+		require.NoError(t, decoder.Decode(&config))
+	}
+	options, ok := config["TraceOptions"].(map[string]interface{})
+	require.True(t, ok, "cardano-node requires trace-dispatcher configuration")
+	root, ok := options[""].(map[string]interface{})
+	require.True(t, ok)
+	require.Equal(t, []interface{}{"Stdout MachineFormat"}, root["backends"])
+	require.Equal(t, "DDetailed", root["detail"], "the analyzer needs full block hashes")
+	for _, namespace := range []string{"Forge.Loop", "ChainDB", "BlockFetch.Client", "Mempool"} {
+		option, ok := options[namespace].(map[string]interface{})
+		require.True(t, ok, namespace)
+		require.Equal(t, "Info", option["severity"], namespace)
+	}
 }
 
 func TestLoadWrapsParseErrorWithPath(t *testing.T) {

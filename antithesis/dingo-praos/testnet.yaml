@@ -55,8 +55,17 @@ TestConwayHardForkAtEpoch: 0
 ExperimentalHardForksEnabled: true
 ExperimentalProtocolsEnabled: true
 PeerSharing: true
-TraceForge: true
-TraceChainDb: true
-TraceMempool: true
-TurnOnLogging: true
-TurnOnLogMetrics: true
+TraceOptions:
+  "":
+    backends:
+      - Stdout MachineFormat
+    detail: DDetailed
+    severity: Notice
+  Forge.Loop:
+    severity: Info
+  ChainDB:
+    severity: Info
+  BlockFetch.Client:
+    severity: Info
+  Mempool:
+    severity: Info
