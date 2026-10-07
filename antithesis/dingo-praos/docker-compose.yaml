@@ -29,7 +29,7 @@
 #   ./scripts/test-local.sh    # Build, start, wait for health, tail logs
 
 x-cardano-node-base: &cardano-node-base
-  image: ghcr.io/blinklabs-io/cardano-node:11.0.1
+  image: ghcr.io/blinklabs-io/cardano-node:11.1.3
   pull_policy: always
   init: true
   environment: &cardano-node-env

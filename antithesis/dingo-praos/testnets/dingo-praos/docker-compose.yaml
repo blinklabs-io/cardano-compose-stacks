@@ -24,7 +24,7 @@
 #   - Includes analysis container (absent from local compose)
 #
 # Variables (set via environment or .env file):
-#   CARDANO_NODE_VERSION   — cardano-node image tag  (default: 11.0.1)
+#   CARDANO_NODE_VERSION   — cardano-node image tag  (default: 11.1.3)
 #   INTERNAL_NETWORK       — isolate network from host (required; use false locally)
 
 # ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ x-cardano-node-bridged-shell-command: &cardano-node-bridged-shell-command
     > "$$NODE_LOG_FILE" 2>&1
 
 x-cardano-node: &cardano-node
-  image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-11.0.1}
+  image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-11.1.3}
   platform: linux/amd64
   pull_policy: never
   init: true
