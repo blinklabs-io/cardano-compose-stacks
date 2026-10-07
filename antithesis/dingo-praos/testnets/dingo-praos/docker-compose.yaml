@@ -55,7 +55,8 @@ x-cardano-node-bridged-shell-command: &cardano-node-bridged-shell-command
 
 x-cardano-node: &cardano-node
   image: ghcr.io/blinklabs-io/cardano-node:${CARDANO_NODE_VERSION:-11.0.1}
-  pull_policy: always
+  platform: linux/amd64
+  pull_policy: never
   init: true
   environment: &cn-env
     CARDANO_BLOCK_PRODUCER: "true"
@@ -80,7 +81,8 @@ services:
   # --------------------------------------------------------------------------
   configurator:
     image: ghcr.io/blinklabs-io/dingo-configurator:main
-    pull_policy: always
+    platform: linux/amd64
+    pull_policy: never
     init: true
     environment:
       NODE_DATABASE_PATH: /data/db
@@ -101,7 +103,8 @@ services:
   # --------------------------------------------------------------------------
   p1:
     image: ghcr.io/blinklabs-io/dingo:main-antithesis
-    pull_policy: always
+    platform: linux/amd64
+    pull_policy: never
     init: true
     hostname: p1.example
     depends_on:
@@ -201,7 +204,8 @@ services:
   # --------------------------------------------------------------------------
   txpump:
     image: ghcr.io/blinklabs-io/cardano-txpump:main
-    pull_policy: always
+    platform: linux/amd64
+    pull_policy: never
     init: true
     # Named Docker volumes are root-owned on first mount; txpump writes
     # /logs/txpump.log for the analysis container.
@@ -240,7 +244,8 @@ services:
   # --------------------------------------------------------------------------
   analysis:
     image: ghcr.io/blinklabs-io/dingo-analysis:main
-    pull_policy: always
+    platform: linux/amd64
+    pull_policy: never
     init: true
     # The analyzer observes the system under test; faults on it would only
     # lose or replay observations.

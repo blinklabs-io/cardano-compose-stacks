@@ -38,6 +38,10 @@ Docker Compose selects the host architecture when it pulls multi-architecture
 images, so the local harness can run natively on ARM64 once the Dingo and
 txpump image manifests include that platform.
 
+The Moog definition selects `linux/amd64` and uses `pull_policy: never` for
+every service. Antithesis imports the images before boot; its offline test
+environment must use those images without contacting the registry.
+
 ## Moog workflow
 
 The scheduled and manually dispatched workflow runs from this repository's
