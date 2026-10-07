@@ -12,11 +12,6 @@ scrape_configs:
     static_configs:
       - targets: ["cardano-node:12798"]
 
-  - job_name: cardano-node-api
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["cardano-node-api:8081"]
-
   - job_name: bursa
     metrics_path: /metrics
     static_configs:
