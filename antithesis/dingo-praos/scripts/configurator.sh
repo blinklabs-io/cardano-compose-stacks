@@ -46,17 +46,15 @@ config_config_json() {
         jq ".PeerSharing = false" "${CONFIG_JSON}" > "$tmp" && mv --force "$tmp" "${CONFIG_JSON}"
     fi
 
-    # The analyzer consumes JSON records from the shared logs volume. Avoid
-    # the configurator's private log path and retain only Info-and-above data.
+    # cardano-node uses TraceOptions from testnet.yaml. Remove the generator's
+    # legacy logging settings, including its private file scribes.
     tmp="${CONFIG_JSON}.tmp.$$"
-    jq '.minSeverity = "Info"
-        | .defaultScribes = [["StdoutSK", "stdout"]]
-        | .setupScribes = [{
-            "scKind": "StdoutSK",
-            "scName": "stdout",
-            "scFormat": "ScJson",
-            "scRotation": null
-          }]' "${CONFIG_JSON}" > "$tmp" && mv --force "$tmp" "${CONFIG_JSON}"
+    jq 'del(.UseTraceDispatcher, .minSeverity, .defaultScribes, .setupScribes,
+            .defaultBackends, .setupBackends, .options, .rotation,
+            .hasPrometheus, .TurnOnLogging, .TurnOnLogMetrics, .TracingVerbosity)
+        | with_entries(select((.key | startswith("Trace")) and
+                              (.value | type) == "boolean" | not))' \
+        "${CONFIG_JSON}" > "$tmp" && mv --force "$tmp" "${CONFIG_JSON}"
 
     # configure UTxO-HD
     # see https://ouroboros-consensus.cardano.intersectmbo.org/docs/for-developers/utxo-hd/migrating

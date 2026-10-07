@@ -89,6 +89,16 @@ func TestParseCardanoNode_ForgedBlock(t *testing.T) {
 	require.Equal(t, "aabbcc", ev.BlockHash)
 }
 
+func TestParseCardanoNode_TraceDispatcherForgedBlock(t *testing.T) {
+	line := `{"at":"2026-10-07T20:44:35Z","ns":"Forge.Loop.ForgedBlock","data":{"block":"ab72785dfcf2916a4b22930ea46e736978a921a27ffeba73c16165d0fd83eab5","blockNo":0,"blockPrev":"GenesisHash","kind":"TraceForgedBlock","slot":0},"sev":"Info"}`
+	ev := ParseLogLine(line)
+	require.NotNil(t, ev)
+	require.Equal(t, EventForgedBlock, ev.Type)
+	require.Equal(t, "ab72785dfcf2916a4b22930ea46e736978a921a27ffeba73c16165d0fd83eab5", ev.BlockHash)
+	require.Zero(t, ev.Slot)
+	require.False(t, ev.Timestamp.IsZero())
+}
+
 func TestParseCardanoNode_AddedToCurrentChain(t *testing.T) {
 	line := `{"ns":"Cardano.ChainSync.AddedToCurrentChain","at":"2026-01-01T00:00:07Z","data":{"slot":600}}`
 	ev := ParseLogLine(line)

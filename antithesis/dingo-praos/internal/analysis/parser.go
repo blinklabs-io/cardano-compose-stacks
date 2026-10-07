@@ -360,7 +360,7 @@ func extractHash(raw map[string]interface{}) string {
 	// cardano-node may nest under "data"
 	if data, ok := raw["data"].(map[string]interface{}); ok {
 		for _, key := range []string{
-			"block_hash", "blockHash", "hash", "headerHash",
+			"block_hash", "blockHash", "hash", "headerHash", "block",
 		} {
 			if v, ok := data[key].(string); ok && v != "" {
 				return v
