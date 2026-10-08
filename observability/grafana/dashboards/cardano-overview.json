@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=~\"cardano-node|cardano-node-api|bursa\"}",
+          "expr": "up{job=~\"cardano-node|bursa\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
         }

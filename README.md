@@ -6,8 +6,6 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **cardano-node**: This is the main Cardano node service. It connects to the Cardano network specified by the NETWORK environment variable. By default, it connects to the `mainnet`.
 
-- **cardano-node-api**: This service is responsible for interfacing with local Cardano node. It depends on the cardano-node service to be healthy before starting.
-
 - **bursa**: This service is programatic wallet. It runs without any persistence.
 
 - **ogmios**: This service is a lightweight bridge interface for cardano-node. It provides an HTTP / WebSocket API that enables applications to interact with a local cardano-node via JSON+RPC-2.0. It depends on the cardano-node service to be healthy before starting.
@@ -17,7 +15,7 @@ This docker-compose setup provides a comprehensive environment for running Carda
 - **cardano-db-sync**: This service syncs the Cardano blockchain data to a PostgreSQL database. It depends on both the cardano-node and postgres services to be healthy before starting.
 
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
-- **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node, cardano-node-api, and Bursa, and provides a preloaded service health dashboard.
+- **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node and Bursa, and provides a preloaded service health dashboard.
 
 ## Additional stacks
 
@@ -41,7 +39,7 @@ Start Prometheus and Grafana with the `observability` profile:
 docker compose --profile observability up -d
 ```
 
-Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node, cardano-node-api, and Bursa when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
+Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node and Bursa when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
 
 ### Start Just the Cardano Node
 
@@ -49,14 +47,6 @@ To start only the `cardano-node` service, which is part of the `node` profile, r
 
 ```bash
 docker compose --profile node up
-```
-
-### Start Cardano Node and cardano-node-api
-
-To start both the `cardano-node` and `cardano-node-api` use `node-api` profile, run:
-
-```bash
-docker compose --profile node-api up
 ```
 
 ### Start Cardano Node and tx-submit-api
