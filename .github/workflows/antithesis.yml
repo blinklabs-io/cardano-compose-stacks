@@ -82,6 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout/releases/tag/v7.0.1
         with:
+          ref: ${{ needs.prepare-test-commit.outputs.commit }}
           persist-credentials: false
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0 https://github.com/docker/setup-qemu-action/releases/tag/v4.4.0
         with:
@@ -199,6 +200,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout/releases/tag/v7.0.1
         with:
+          ref: ${{ env.TEST_COMMIT }}
           persist-credentials: false
       - name: Resolve Moog release
         id: moog-release

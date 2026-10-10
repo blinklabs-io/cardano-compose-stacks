@@ -235,10 +235,10 @@ func TestExtractSlot_RejectsMalformedNumbers(t *testing.T) {
 func TestParseLine_MalformedSlotJSON(t *testing.T) {
 	t.Parallel()
 	for name, slot := range map[string]string{
-		"fractional":    `1.5`,
-		"negative":      `-7`,
-		"exponent past": `1e30`,
-		"imprecise":     `9007199254740993`,
+		"fractional":      `1.5`,
+		"tiny fractional": `42.0000000000000001`,
+		"negative":        `-7`,
+		"exponent past":   `1e30`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -249,4 +249,13 @@ func TestParseLine_MalformedSlotJSON(t *testing.T) {
 			require.Zero(t, ev.Slot)
 		})
 	}
+}
+
+func TestParseLine_LargeExactSlot(t *testing.T) {
+	t.Parallel()
+	ev := ParseLogLine(
+		`{"msg":"block produced","slot":9007199254740993,"block_hash":"abc"}`,
+	)
+	require.NotNil(t, ev)
+	require.Equal(t, uint64(9007199254740993), ev.Slot)
 }

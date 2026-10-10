@@ -23,13 +23,13 @@ fi
 manifest_json="$(
     docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest}}'
 )"
-image_json="$(
-    docker buildx imagetools inspect "$IMAGE" --format '{{json .Image}}'
-)"
-
 digest="$(
     jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' \
         <<<"$manifest_json"
+)"
+resolved_image="ghcr.io/blinklabs-io/dingo@${digest}"
+image_json="$(
+    docker buildx imagetools inspect "$resolved_image" --format '{{json .Image}}'
 )"
 revision="$(
     jq -er '
@@ -45,7 +45,7 @@ revision="$(
           end
     ' <<<"$image_json"
 )"
-pinned_image="ghcr.io/blinklabs-io/dingo@${digest}"
+pinned_image="$resolved_image"
 
 sed -i -E \
     -e "/^[[:space:]]+# Source: blinklabs-io\/dingo@[0-9a-f]{40}$/d" \

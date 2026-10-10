@@ -16,6 +16,7 @@ package analysis
 
 import (
 	"encoding/json"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -98,8 +99,13 @@ func ParseLogLine(line string) *BlockEvent {
 		return nil
 	}
 
+	decoder := json.NewDecoder(strings.NewReader(line))
+	decoder.UseNumber()
 	var raw map[string]interface{}
-	if err := json.Unmarshal([]byte(line), &raw); err != nil {
+	if err := decoder.Decode(&raw); err != nil {
+		return nil
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return nil
 	}
 
@@ -248,6 +254,10 @@ func extractTimestamp(raw map[string]interface{}) time.Time {
 func extractSlot(raw map[string]interface{}) uint64 {
 	for _, key := range []string{"slot", "slot_no", "slotNo"} {
 		switch v := raw[key].(type) {
+		case json.Number:
+			if n, err := strconv.ParseUint(string(v), 10, 64); err == nil {
+				return n
+			}
 		case float64:
 			// JSON numbers decode to float64, which is exact only for
 			// integers below 2^53; anything else is not a slot.
