@@ -32,8 +32,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-images:
+  prepare-test-commit:
     if: github.ref == 'refs/heads/main' && github.repository == 'blinklabs-io/cardano-compose-stacks'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.prepare.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1 https://github.com/docker/setup-buildx-action/releases/tag/v4.4.1
+      - name: Prepare immutable test configuration
+        id: prepare
+        run: |
+          set -euo pipefail
+          branch="automation/antithesis-run-config"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            git fetch origin "refs/heads/${branch}:refs/remotes/origin/${branch}"
+            git switch --track -c "$branch" "origin/$branch"
+            if ! git merge-base --is-ancestor origin/main HEAD; then
+              git -c rerere.enabled=false merge origin/main --signoff \
+                -m "chore: merge origin/main into ${branch}"
+            fi
+          else
+            git switch -c "$branch"
+          fi
+          testnet="antithesis/dingo-praos/testnets/dingo-praos/docker-compose.yaml"
+          antithesis/dingo-praos/scripts/update-dingo-image.sh "$testnet"
+          git add "$testnet"
+          if ! git diff --cached --quiet; then
+            revision="$(sed -n -E 's|^[[:space:]]+# Source: blinklabs-io/dingo@([0-9a-f]{40})$|\1|p' "$testnet")"
+            git commit -s -m "chore(antithesis): run Dingo ${revision:0:12}"
+          fi
+          git push -u origin "$branch"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build-images:
+    needs: [prepare-test-commit]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -125,7 +164,7 @@ jobs:
 
   submit-antithesis:
     name: Submit Antithesis test via Moog
-    needs: [build-images, check-moog-secrets]
+    needs: [prepare-test-commit, build-images, check-moog-secrets]
     if: github.repository == 'blinklabs-io/cardano-compose-stacks' && needs['check-moog-secrets'].outputs.available == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -138,6 +177,7 @@ jobs:
       MOOG_REQUESTER: ${{ vars.MOOG_REQUESTER }}
       MOOG_TOKEN_ID: ${{ vars.MOOG_TOKEN_ID || '21c523c3b4565f1fc1ad7e54e82ca976f60997d8e7e9946826813fabf341069b' }}
       DURATION: ${{ inputs.duration || '1' }}
+      TEST_COMMIT: ${{ needs['prepare-test-commit'].outputs.commit }}
     steps:
       - name: Validate duration
         id: duration
@@ -202,7 +242,7 @@ jobs:
           TESTNET_DIR="antithesis/dingo-praos/testnets/dingo-praos"
           if ! CENSUS=$(moog facts test-runs --whose "$MOOG_REQUESTER") \
             || ! TRY=$(echo "$CENSUS" | jq -e \
-              --arg commit "$GITHUB_SHA" \
+              --arg commit "$TEST_COMMIT" \
               --arg directory "$TESTNET_DIR" \
               --arg platform "$MOOG_PLATFORM" \
               --arg repository "$GITHUB_REPOSITORY" \
@@ -224,7 +264,7 @@ jobs:
           # shellcheck disable=SC2086 # NO_FAULTS_FLAG intentionally word-splits
           RESULT=$(moog requester create-test \
             -d "$TESTNET_DIR" \
-            -c "${GITHUB_SHA}" \
+            -c "${TEST_COMMIT}" \
             -r "${GITHUB_REPOSITORY}" \
             --try "$TRY" \
             -t "$DURATION_HOURS" \
