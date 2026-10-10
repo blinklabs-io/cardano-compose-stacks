@@ -7,7 +7,7 @@ workload, and safety/liveness analyzer.
 
 ## Images
 
-The Moog stack uses the published `main` images:
+The checked-in stack uses the published `main` images:
 
 - `ghcr.io/blinklabs-io/dingo:main-antithesis`
 - `ghcr.io/blinklabs-io/dingo-configurator:main`
@@ -45,7 +45,9 @@ environment must use those images without contacting the registry.
 ## Moog workflow
 
 The scheduled and manually dispatched workflow runs from this repository's
-`main` branch. It publishes the configurator and analyzer as `main` images,
-then submits the current `main` commit and testnet directory to Moog. Configure
+`main` branch. Before submission it resolves Dingo's `main-antithesis` image to
+an immutable OCI digest, records the image's Dingo source revision in an
+automation-branch commit, and submits that commit to Moog. It also publishes
+the configurator and analyzer as `main` images. Configure
 `MOOG_REQUESTER_WALLET` as a repository secret and set `MOOG_REQUESTER` as a
 repository variable. `MOOG_MPFS_HOST` and `MOOG_TOKEN_ID` are optional.
