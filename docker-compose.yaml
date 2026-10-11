@@ -100,7 +100,7 @@ services:
 
   bursa:
     container_name: bursa
-    image: ghcr.io/blinklabs-io/bursa:${BURSA_VERSION:-0.18.0}
+    image: ghcr.io/blinklabs-io/bursa:${BURSA_VERSION:-0.19.0}
     environment:
       - NETWORK=${CARDANO_NETWORK:-mainnet}
     restart: on-failure
