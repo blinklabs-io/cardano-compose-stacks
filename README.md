@@ -6,8 +6,6 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **cardano-node**: This is the main Cardano node service. It connects to the Cardano network specified by the NETWORK environment variable. By default, it connects to the `mainnet`.
 
-- **cardano-node-api**: This service is responsible for interfacing with local Cardano node. It depends on the cardano-node service to be healthy before starting.
-
 - **bursa**: This service is programatic wallet. It runs without any persistence.
 
 - **ogmios**: This service is a lightweight bridge interface for cardano-node. It provides an HTTP / WebSocket API that enables applications to interact with a local cardano-node via JSON+RPC-2.0. It depends on the cardano-node service to be healthy before starting.
@@ -16,9 +14,14 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **cardano-db-sync**: This service syncs the Cardano blockchain data to a PostgreSQL database. It depends on both the cardano-node and postgres services to be healthy before starting.
 
-- **dingo**: Blink Labs' Cardano node, started by the `dingo-otel` profile with OpenTelemetry tracing enabled. Works with **otel-collector**, **jaeger**, **prometheus**, and **grafana**, which make up the observability stack.
-
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
+- **dingo**, **otel-collector**, and **jaeger**: An optional OpenTelemetry stack for Dingo, started by the `dingo-otel` profile.
+- **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node and Bursa, and provides a preloaded service health dashboard.
+
+## Additional stacks
+
+- [Dingo Praos Antithesis harness](antithesis/dingo-praos/README.md)
+- [Dingo archive node demo](dingo-archive-demo/README.md)
 
 ## How to Start Services
 
@@ -29,20 +32,52 @@ Because each service has defined dependency that means starting a service will a
 With profiles, you can selectively start services based on different needs or environments.
 Below are examples of how to use profiles in this setup.
 
+### Start the Observability Stack
+
+Start Prometheus and Grafana with the `observability` profile:
+
+```bash
+docker compose --profile observability up -d
+```
+
+Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node and Bursa when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
+
+### Start Dingo with OpenTelemetry
+
+Start Dingo with tracing and metrics collection using the `dingo-otel` profile:
+
+```bash
+docker compose --profile dingo-otel up -d
+```
+
+This starts `dingo`, an OpenTelemetry Collector (`otel-collector`), Jaeger, and
+the Prometheus and Grafana services from the observability stack. Dingo sends
+spans over OTLP/HTTP to the collector, which forwards them to Jaeger.
+Prometheus scrapes Dingo's metrics on port 12798; `DINGO_METRICS_BIND_ADDR` is
+set so Prometheus can reach it, and the host port binds to localhost.
+Grafana has Prometheus and Jaeger as data sources.
+
+| Service | URL |
+|---------|-----|
+| Jaeger UI | <http://localhost:16686> |
+| Prometheus | <http://localhost:9091> |
+| Grafana | <http://localhost:3000> |
+| OTLP HTTP / gRPC | `localhost:4318` / `localhost:4317` |
+
+All of these ports bind to localhost. Dingo's relay port 3001 conflicts with
+`cardano-node`, so set `DINGO_NODE_PORT` to run both.
+
+The `otel` profile starts only the collector, Jaeger, Prometheus, and Grafana,
+for use with a Dingo you run elsewhere. Set `DINGO_TRACING_ENABLED=true` and
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:4318` on that Dingo, and add its
+metrics address to `observability/prometheus.yml`.
+
 ### Start Just the Cardano Node
 
 To start only the `cardano-node` service, which is part of the `node` profile, run:
 
 ```bash
 docker compose --profile node up
-```
-
-### Start Cardano Node and cardano-node-api
-
-To start both the `cardano-node` and `cardano-node-api` use `node-api` profile, run:
-
-```bash
-docker compose --profile node-api up
 ```
 
 ### Start Cardano Node and tx-submit-api
@@ -143,34 +178,6 @@ To start just the `cardano-wallet` service, which is part of the `wallet` profil
 ```bash
 docker compose --profile wallet up
 ```
-
-### How to Use the OpenTelemetry Stack with Dingo
-
-To start Dingo with tracing and metrics collection, run:
-
-```bash
-docker compose --profile dingo-otel up
-```
-
-This starts `dingo`, an OpenTelemetry Collector (`otel-collector`), Jaeger,
-Prometheus, and Grafana. Dingo sends spans over OTLP/HTTP to the collector,
-which forwards them to Jaeger. Prometheus scrapes Dingo's metrics endpoint
-on port 12798 (`DINGO_METRICS_BIND_ADDR=0.0.0.0` is set so it can reach
-the container; the host port is published on loopback only). Grafana has Prometheus and Jaeger preconfigured as data sources.
-
-| Service | URL |
-|---------|-----|
-| Jaeger UI | <http://localhost:16686> |
-| Prometheus | <http://localhost:9090> |
-| Grafana | <http://localhost:3000> (`admin` / `GRAFANA_ADMIN_PASSWORD`, default `admin`) |
-| OTLP HTTP / gRPC | `localhost:4318` / `localhost:4317` |
-
-The telemetry ports are published on loopback only. Set `GRAFANA_ADMIN_PASSWORD` before exposing Grafana beyond localhost.
-
-To run only the telemetry services and point an existing Dingo at them, use
-the `otel` profile and set `DINGO_TRACING_ENABLED=true` and
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:4318` on that Dingo. Add that
-Dingo's metrics address to `otel/prometheus.yaml` to scrape it.
 
 ## Version Maintenance
 

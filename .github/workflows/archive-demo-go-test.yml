@@ -1,0 +1,22 @@
+# Generated automatically by org-governance-bot. Do not edit manually.
+name: "Archive demo Go checks"
+
+on:
+  pull_request:
+    paths:
+      - dingo-archive-demo/**
+  push:
+    branches:
+      - main
+    paths:
+      - dingo-archive-demo/**
+
+jobs:
+  orchestrate:
+    uses: blinklabs-io/actions/.github/workflows/reuseable-go-test.yml@main
+    with:
+      nilaway-version: latest
+      run-golangci-lint: true
+      run-nilaway: true
+      test-flags: -race -tags=archive_demo -run=^$
+      working-directory: dingo-archive-demo
