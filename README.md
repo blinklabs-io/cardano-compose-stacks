@@ -16,6 +16,8 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **cardano-db-sync**: This service syncs the Cardano blockchain data to a PostgreSQL database. It depends on both the cardano-node and postgres services to be healthy before starting.
 
+- **dingo**: Blink Labs' Cardano node, started by the `dingo-otel` profile with OpenTelemetry tracing enabled. Works with **otel-collector**, **jaeger**, **prometheus**, and **grafana**, which make up the observability stack.
+
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
 
 ## How to Start Services
@@ -141,6 +143,34 @@ To start just the `cardano-wallet` service, which is part of the `wallet` profil
 ```bash
 docker compose --profile wallet up
 ```
+
+### How to Use the OpenTelemetry Stack with Dingo
+
+To start Dingo with tracing and metrics collection, run:
+
+```bash
+docker compose --profile dingo-otel up
+```
+
+This starts `dingo`, an OpenTelemetry Collector (`otel-collector`), Jaeger,
+Prometheus, and Grafana. Dingo sends spans over OTLP/HTTP to the collector,
+which forwards them to Jaeger. Prometheus scrapes Dingo's metrics endpoint
+on port 12798 (`DINGO_METRICS_BIND_ADDR=0.0.0.0` is set so it can reach
+the container; the host port is published on loopback only). Grafana has Prometheus and Jaeger preconfigured as data sources.
+
+| Service | URL |
+|---------|-----|
+| Jaeger UI | <http://localhost:16686> |
+| Prometheus | <http://localhost:9090> |
+| Grafana | <http://localhost:3000> (`admin` / `GRAFANA_ADMIN_PASSWORD`, default `admin`) |
+| OTLP HTTP / gRPC | `localhost:4318` / `localhost:4317` |
+
+Set `GRAFANA_ADMIN_PASSWORD` before exposing Grafana beyond localhost.
+
+To run only the telemetry services and point an existing Dingo at them, use
+the `otel` profile and set `DINGO_TRACING_ENABLED=true` and
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:4318` on that Dingo. Add that
+Dingo's metrics address to `otel/prometheus.yaml` to scrape it.
 
 ## Version Maintenance
 
