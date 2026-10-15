@@ -140,6 +140,7 @@ func (a *Analyzer) check() {
 		a.reportLivenessAssertions(&snap)
 	}
 	a.reportReachable(&snap)
+	a.reportDivergence(&snap)
 }
 
 func (a *Analyzer) reportObservability(snap MetricsSnapshot) {
@@ -577,6 +578,46 @@ func (a *Analyzer) reportLivenessAssertions(snap *MetricsSnapshot) {
 			"governance_processed": snap.GovernanceProcessed,
 		},
 	)
+}
+
+// reportDivergence reports cross-implementation disagreement over the same
+// transactions, plus per-type and per-user workload outcomes. State-dependent
+// rejections are logged separately and never fail the assertion.
+func (a *Analyzer) reportDivergence(snap *MetricsSnapshot) {
+	Always(
+		len(snap.Divergences) == 0,
+		"no-cross-implementation-divergence",
+		map[string]interface{}{
+			"divergences":         len(snap.Divergences),
+			"expected_rejections": len(snap.ExpectedRejections),
+		},
+	)
+	for _, d := range snap.Divergences {
+		a.logger.Error(
+			"cross-implementation divergence",
+			"tx_id", d.TxID,
+			"accepted_by", d.AcceptedBy,
+			"rejected_by", d.RejectedBy,
+			"reason", d.Reason,
+		)
+	}
+	for _, r := range snap.ExpectedRejections {
+		a.logger.Debug(
+			"expected state-dependent rejection",
+			"tx_id", r.TxID,
+			"impl", r.Impl,
+			"reason", r.Reason,
+		)
+	}
+	if len(snap.SubmittedByType)+len(snap.RejectedByType) > 0 {
+		a.logger.Info(
+			"workload outcomes",
+			"submitted_by_type", snap.SubmittedByType,
+			"rejected_by_type", snap.RejectedByType,
+			"submitted_by_user", snap.SubmittedByUser,
+			"rejected_by_user", snap.RejectedByUser,
+		)
+	}
 }
 
 // reportReachable fires Reachable markers for important code paths.

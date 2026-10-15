@@ -1,0 +1,3 @@
+{"ts":"2026-01-01T00:00:01Z","tx_id":"aa01","tx_type":"payment","status":"submitted","user":"u1"}
+{"ts":"2026-01-01T00:00:02Z","tx_id":"bb02","tx_type":"auction","status":"submitted","user":"u2"}
+{"ts":"2026-01-01T00:00:03Z","tx_id":"cc03","tx_type":"auction","status":"rejected","error":"node n: SubmitTx eraID=6: bad input(s): ab#0","user":"u2"}
