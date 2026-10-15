@@ -158,7 +158,7 @@ func (m *Metrics) recordForgedBlock(ev *BlockEvent) {
 	if ev.Slot > 0 && ev.BlockHash != "" {
 		key := nodeSlotKey(ev.NodeID, ev.Slot)
 		if existing, ok := m.hashByNodeSlot[key]; ok {
-			if existing != ev.BlockHash {
+			if !hashesMatch(existing, ev.BlockHash) {
 				m.Equivocations = append(m.Equivocations, Equivocation{
 					NodeID: ev.NodeID,
 					Slot:   ev.Slot,

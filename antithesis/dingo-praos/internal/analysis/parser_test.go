@@ -16,6 +16,7 @@ package analysis
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -258,4 +259,51 @@ func TestParseLine_LargeExactSlot(t *testing.T) {
 	)
 	require.NotNil(t, ev)
 	require.Equal(t, uint64(9007199254740993), ev.Slot)
+}
+
+const dingoTipHash = "6b0f0c3a1d2e4f5a69788796a5b4c3d2e1f0011223344556677889aabbccddee"
+
+func TestParseDingo_ChainExtendedHashFromMessage(t *testing.T) {
+	line := `{"time":"2026-01-01T00:00:02Z","level":"INFO",` +
+		`"msg":"chain extended, new tip: ` + dingoTipHash +
+		` at slot 1234","component":"ledger","source":"chainsync"}`
+	ev := ParseLogLine(line)
+	require.NotNil(t, ev)
+	require.Equal(t, EventChainExtended, ev.Type)
+	require.Equal(t, uint64(1234), ev.Slot)
+	require.Equal(t, dingoTipHash, ev.BlockHash)
+}
+
+func TestParseDingo_ChainExtendedKeepsStructuredHash(t *testing.T) {
+	line := `{"time":"2026-01-01T00:00:02Z",` +
+		`"msg":"chain extended, new tip: ` + dingoTipHash +
+		` at slot 7","block_hash":"def456"}`
+	ev := ParseLogLine(line)
+	require.NotNil(t, ev)
+	require.Equal(t, "def456", ev.BlockHash)
+}
+
+func TestExtractTipHashFromMsg(t *testing.T) {
+	cases := map[string]string{
+		"chain extended, new tip: ABCDEF0123 at slot 5": "abcdef0123",
+		"chain extended, new tip:  at slot 5":           "",
+		"chain extended, new tip: zz at slot 5":         "",
+		"chain extended":                                "",
+		"chain extended, new tip: abcd":                 "abcd",
+	}
+	for msg, want := range cases {
+		require.Equal(t, want, extractTipHashFromMsg(msg), msg)
+	}
+}
+
+func TestHashesMatch(t *testing.T) {
+	full := dingoTipHash
+	require.True(t, hashesMatch(full, full))
+	require.True(t, hashesMatch(full, full[:8]))
+	require.True(t, hashesMatch(full[:8], full))
+	require.True(t, hashesMatch(strings.ToUpper(full[:8]), full))
+	require.False(t, hashesMatch(full, "6b0f0c3b"))
+	require.False(t, hashesMatch(full, full[:7]))
+	require.False(t, hashesMatch("", full))
+	require.False(t, hashesMatch("", ""))
 }
