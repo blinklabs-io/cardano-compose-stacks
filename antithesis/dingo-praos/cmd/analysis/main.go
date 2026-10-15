@@ -18,6 +18,9 @@
 // assertions are written to stderr as structured JSON logs so that the binary
 // remains useful outside the Antithesis platform.
 //
+// The one-shot subcommand "eventually" reads the logs once and reports the
+// post-fault convergence assertion instead of starting the ticker.
+//
 // Configuration is read entirely from environment variables; see
 // internal/analysis/config.go for the full list.
 package main
@@ -43,6 +46,10 @@ func main() {
 	if err != nil {
 		logger.Error("invalid configuration", "err", err)
 		os.Exit(1)
+	}
+
+	if len(os.Args) > 1 {
+		os.Exit(runSubcommand(os.Args[1], cfg, logger))
 	}
 
 	logger.Info(
@@ -71,4 +78,27 @@ func main() {
 	}
 
 	logger.Info("analysis stopped")
+}
+
+// runSubcommand runs a one-shot command and returns the process exit code.
+// The commands read the same ANALYSIS_* environment as the daemon, so one
+// started with `docker exec` in the daemon's container sees the same log
+// directory.
+func runSubcommand(name string, cfg *analysis.Config, logger *slog.Logger) int {
+	switch name {
+	case "eventually":
+		// The verdict is the emitted assertion; the exit code only reports
+		// that the command ran.
+		res := analysis.NewAnalyzer(cfg, logger).CheckEventually()
+		logger.Info(
+			"eventually check complete",
+			"log_dir", cfg.LogDir,
+			"comparable", res.Comparable,
+			"converged", res.Converged,
+		)
+		return 0
+	default:
+		logger.Error("unknown subcommand", "name", name)
+		return 2
+	}
 }

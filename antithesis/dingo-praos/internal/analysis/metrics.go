@@ -81,6 +81,10 @@ type Metrics struct {
 
 	confirmedTxIDs map[string]int
 
+	// chains holds each node's recent chain, rebuilt from chain-extended and
+	// rollback events; the last entry is the node's final tip.
+	chains map[string][]Tip
+
 	// delegationsProcessed counts submitted delegation transactions from txpump logs.
 	delegationsProcessed int
 
@@ -100,6 +104,7 @@ func NewMetrics() *Metrics {
 		hashByNodeSlot: make(map[string]string),
 		SubmittedTxIDs: make(map[string]int),
 		confirmedTxIDs: make(map[string]int),
+		chains:         make(map[string][]Tip),
 	}
 }
 
@@ -117,6 +122,8 @@ func (m *Metrics) RecordEvent(ev *BlockEvent) {
 		m.recordForgedBlock(ev)
 	case EventChainExtended:
 		m.recordChainExtended(ev)
+	case EventChainRolledBack:
+		m.recordRollback(ev)
 	case EventMempoolAdd:
 		m.MempoolTxCount++
 	case EventTxConfirmed:
@@ -199,6 +206,7 @@ func (m *Metrics) recordChainExtended(ev *BlockEvent) {
 	if ev.Slot == 0 {
 		return
 	}
+	m.extendChain(ev.NodeID, Tip{Slot: ev.Slot, Hash: ev.BlockHash})
 	prev, ok := m.ChainTipByNode[ev.NodeID]
 	if !ok || ev.Slot > prev {
 		m.ChainTipByNode[ev.NodeID] = ev.Slot

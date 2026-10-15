@@ -18,6 +18,16 @@ The Dingo repository publishes its instrumented image. This repository builds
 the configurator and analyzer in `.github/workflows/antithesis.yml`; the
 separate `cardano-txpump` repository publishes the workload image.
 
+## Post-fault convergence check
+
+The analysis image carries `eventually_converged.sh` under
+`/opt/antithesis/test/v1/dingo-praos/`. Antithesis runs it after fault
+injection stops. It waits briefly, then runs `analysis eventually`, which
+reads the node logs once and asserts that every node's final tip is within
+`ANALYSIS_CONVERGENCE_WINDOW` slots (default 10) of the longest tip and on the
+same chain. The command reads the same `ANALYSIS_*` environment as the daemon,
+so it uses the same log directory.
+
 ## Local Compose run
 
 From this directory:

@@ -307,3 +307,33 @@ func TestHashesMatch(t *testing.T) {
 	require.False(t, hashesMatch("", full))
 	require.False(t, hashesMatch("", ""))
 }
+
+func TestParseDingo_ChainRolledBack(t *testing.T) {
+	line := `{"time":"2026-01-01T00:00:03Z","msg":"chain rolled back, new tip: ` +
+		dingoTipHash + ` at slot 321","component":"ledger"}`
+	ev := ParseLogLine(line)
+	require.NotNil(t, ev)
+	require.Equal(t, EventChainRolledBack, ev.Type)
+	require.Equal(t, uint64(321), ev.Slot)
+	require.Equal(t, dingoTipHash, ev.BlockHash)
+}
+
+func TestParseDingo_ChainRolledBackToGenesis(t *testing.T) {
+	line := `{"time":"2026-01-01T00:00:03Z",` +
+		`"msg":"chain rolled back, new tip: <genesis> at slot 0"}`
+	ev := ParseLogLine(line)
+	require.NotNil(t, ev)
+	require.Equal(t, EventChainRolledBack, ev.Type)
+	require.Zero(t, ev.Slot)
+	require.Empty(t, ev.BlockHash)
+}
+
+func TestParseDingo_ChainRolledBackMalformedIsIgnored(t *testing.T) {
+	for _, msg := range []string{
+		"chain rolled back",
+		"chain rolled back, new tip: abcdef0123456789",
+		"chain rolled back, new tip: abcdef0123456789 at slot x",
+	} {
+		require.Nil(t, ParseLogLine(`{"msg":"`+msg+`"}`), msg)
+	}
+}

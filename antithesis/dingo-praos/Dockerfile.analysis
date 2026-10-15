@@ -13,5 +13,8 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 RUN useradd --uid 1000 -m analysis
 COPY --from=build /code/analysis /bin/analysis
+# Antithesis runs test commands from this directory with `docker exec`; the
+# analysis daemon is the container's main process, so it stays up for them.
+COPY --chmod=0755 composer/dingo-praos/eventually_converged.sh /opt/antithesis/test/v1/dingo-praos/eventually_converged.sh
 USER analysis
 ENTRYPOINT ["/bin/analysis"]

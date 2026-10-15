@@ -48,6 +48,11 @@ const (
 	// a confirmed block.
 	EventTxConfirmed
 
+	// EventChainRolledBack indicates the node's local chain was rolled back
+	// to a new tip. Slot is zero and BlockHash empty for a rollback to
+	// the origin.
+	EventChainRolledBack
+
 	// EventTxSubmitted indicates txpump successfully submitted a transaction.
 	// The TxType field on BlockEvent identifies the tx type (payment,
 	// delegation, governance, plutus).
@@ -136,6 +141,17 @@ func parseDingoLine(raw map[string]interface{}) *BlockEvent {
 		evType = EventForgedBlock
 	case strings.HasPrefix(msg, "chain extended"):
 		evType = EventChainExtended
+	case strings.HasPrefix(msg, "chain rolled back"):
+		slot, hash, ok := parseRollbackMsg(msg)
+		if !ok {
+			return nil
+		}
+		return &BlockEvent{
+			Type:      EventChainRolledBack,
+			Timestamp: extractTimestamp(raw),
+			Slot:      slot,
+			BlockHash: hash,
+		}
 	case msg == "added transaction" && componentIs(raw, "mempool"):
 		evType = EventMempoolAdd
 	case msg == "confirmed transaction" && componentIs(raw, "mempool"):
@@ -322,6 +338,29 @@ func extractTipHashFromMsg(msg string) string {
 		}
 	}
 	return token
+}
+
+// parseRollbackMsg parses "chain rolled back, new tip: <hash|<genesis>> at
+// slot <N>". It reports false when either part is missing, so a malformed
+// line is never read as a rollback to the origin.
+func parseRollbackMsg(msg string) (slot uint64, hash string, ok bool) {
+	if !strings.Contains(msg, "new tip: ") ||
+		!strings.Contains(msg, " at slot ") {
+		return 0, "", false
+	}
+	const marker = " at slot "
+	rest := msg[strings.LastIndex(msg, marker)+len(marker):]
+	digits := strings.TrimSpace(rest)
+	if end := strings.IndexFunc(digits, func(r rune) bool {
+		return r < '0' || r > '9'
+	}); end >= 0 {
+		digits = digits[:end]
+	}
+	n, err := strconv.ParseUint(digits, 10, 64)
+	if err != nil {
+		return 0, "", false
+	}
+	return n, extractTipHashFromMsg(msg), true
 }
 
 // minHashPrefix is the shortest hash prefix that identifies a block.
