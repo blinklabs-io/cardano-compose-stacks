@@ -49,7 +49,7 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
-		os.Exit(runSubcommand(os.Args[1], cfg, logger))
+		os.Exit(dispatch(os.Args[1:], cfg, logger))
 	}
 
 	logger.Info(
@@ -78,6 +78,16 @@ func main() {
 	}
 
 	logger.Info("analysis stopped")
+}
+
+// dispatch runs the subcommand named by args[0]. The subcommands take no
+// arguments, so any extra argument is rejected rather than ignored.
+func dispatch(args []string, cfg *analysis.Config, logger *slog.Logger) int {
+	if len(args) != 1 {
+		logger.Error("unexpected arguments", "args", args[1:])
+		return 2
+	}
+	return runSubcommand(args[0], cfg, logger)
 }
 
 // runSubcommand runs a one-shot command and returns the process exit code.

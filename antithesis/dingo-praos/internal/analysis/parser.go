@@ -341,8 +341,9 @@ func extractTipHashFromMsg(msg string) string {
 }
 
 // parseRollbackMsg parses "chain rolled back, new tip: <hash|<genesis>> at
-// slot <N>". It reports false when either part is missing, so a malformed
-// line is never read as a rollback to the origin.
+// slot <N>". It reports false when the slot is missing or the tip is neither
+// a hex hash nor the genesis placeholder, so a malformed line is never read
+// as a rollback to the origin.
 func parseRollbackMsg(msg string) (slot uint64, hash string, ok bool) {
 	if !strings.Contains(msg, "new tip: ") ||
 		!strings.Contains(msg, " at slot ") {
@@ -360,7 +361,22 @@ func parseRollbackMsg(msg string) (slot uint64, hash string, ok bool) {
 	if err != nil {
 		return 0, "", false
 	}
-	return n, extractTipHashFromMsg(msg), true
+	hash = extractTipHashFromMsg(msg)
+	if hash == "" && !rollbackToOrigin(msg) {
+		return 0, "", false
+	}
+	return n, hash, true
+}
+
+// rollbackToOrigin reports whether the message names the genesis placeholder
+// as the new tip.
+func rollbackToOrigin(msg string) bool {
+	_, rest, found := strings.Cut(msg, "new tip: ")
+	if !found {
+		return false
+	}
+	token, _, _ := strings.Cut(strings.TrimSpace(rest), " ")
+	return token == "<genesis>"
 }
 
 // minHashPrefix is the shortest hash prefix that identifies a block.
@@ -377,9 +393,6 @@ func hashesMatch(a, b string) bool {
 	b = strings.ToLower(strings.TrimSpace(b))
 	if a == "" || b == "" {
 		return false
-	}
-	if a == b {
-		return true
 	}
 	if len(a) > len(b) {
 		a, b = b, a

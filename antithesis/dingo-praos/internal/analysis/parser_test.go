@@ -306,6 +306,10 @@ func TestHashesMatch(t *testing.T) {
 	require.False(t, hashesMatch(full, full[:7]))
 	require.False(t, hashesMatch("", full))
 	require.False(t, hashesMatch("", ""))
+	// Equal fragments below the prefix floor identify nothing.
+	require.False(t, hashesMatch("abc", "abc"))
+	require.False(t, hashesMatch(full[:7], full[:7]))
+	require.True(t, hashesMatch(full[:8], full[:8]))
 }
 
 func TestParseDingo_ChainRolledBack(t *testing.T) {
@@ -335,5 +339,31 @@ func TestParseDingo_ChainRolledBackMalformedIsIgnored(t *testing.T) {
 		"chain rolled back, new tip: abcdef0123456789 at slot x",
 	} {
 		require.Nil(t, ParseLogLine(`{"msg":"`+msg+`"}`), msg)
+	}
+}
+
+func TestParseRollbackMsg_RejectsMissingOrMalformedHash(t *testing.T) {
+	full := strings.Repeat("ab", 32)
+	slot, hash, ok := parseRollbackMsg(
+		"chain rolled back, new tip: " + full + " at slot 42")
+	require.True(t, ok)
+	require.Equal(t, uint64(42), slot)
+	require.Equal(t, full, hash)
+
+	// A rollback to the origin carries the placeholder, not a hash.
+	slot, hash, ok = parseRollbackMsg(
+		"chain rolled back, new tip: <genesis> at slot 0")
+	require.True(t, ok)
+	require.Zero(t, slot)
+	require.Empty(t, hash)
+
+	for _, msg := range []string{
+		"chain rolled back, new tip:  at slot 42",
+		"chain rolled back, new tip: not-hex! at slot 42",
+		"chain rolled back, new tip: <unknown> at slot 42",
+		"chain rolled back, new tip: at slot 42",
+	} {
+		_, _, ok = parseRollbackMsg(msg)
+		require.False(t, ok, msg)
 	}
 }

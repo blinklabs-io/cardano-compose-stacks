@@ -15,6 +15,7 @@
 package analysis
 
 import (
+	"fmt"
 	"sort"
 )
 
@@ -59,6 +60,13 @@ func (m *Metrics) recordRollback(ev *BlockEvent) {
 		chain = append(chain, Tip{Slot: ev.Slot, Hash: ev.BlockHash})
 	}
 	m.chains[ev.NodeID] = chain
+	// The tip metric follows the chain down; it is otherwise a high-water
+	// mark and would leave lag checks reading the pre-rollback slot.
+	var tipSlot uint64
+	if len(chain) > 0 {
+		tipSlot = chain[len(chain)-1].Slot
+	}
+	m.ChainTipByNode[ev.NodeID] = tipSlot
 }
 
 // ConvergenceResult is the outcome of comparing every node's final tip.
@@ -67,8 +75,9 @@ type ConvergenceResult struct {
 	// which case no convergence claim can be made.
 	Comparable bool
 
-	// Converged is true when every node is within the window of the longest
-	// tip and none sits on a different chain from it.
+	// Converged is true when every expected node has a tip, every node is
+	// within the window of the longest tip, and none sits on a different
+	// chain from it.
 	Converged bool
 
 	// MaxSlot is the slot of the longest tip.
@@ -76,6 +85,11 @@ type ConvergenceResult struct {
 
 	// Reference is the node holding the longest tip.
 	Reference string
+
+	// Missing lists expected nodes for which no chain event was logged
+	// while at least two other nodes did. A configured producer with no tip
+	// after faults stop cannot be called converged, so it fails the check.
+	Missing []string
 
 	// Tips is each node's final tip.
 	Tips map[string]Tip
@@ -101,6 +115,17 @@ type ConvergenceResult struct {
 // hash is missing, the node is passed on slot distance alone and
 // HashUnverified is set.
 func (m *Metrics) EvaluateConvergence(window uint64) ConvergenceResult {
+	return m.EvaluateConvergenceFor(window, nil)
+}
+
+// EvaluateConvergenceFor is EvaluateConvergence with the set of nodes that
+// must be present. Fewer than two observed nodes is not comparable (the logs
+// may simply be absent). Otherwise an expected node with no tip is listed in
+// Missing and the result is not converged.
+func (m *Metrics) EvaluateConvergenceFor(
+	window uint64,
+	expected []string,
+) ConvergenceResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -119,6 +144,12 @@ func (m *Metrics) EvaluateConvergence(window uint64) ConvergenceResult {
 		return res
 	}
 	res.Comparable = true
+	for _, id := range expected {
+		if _, ok := m.chains[id]; !ok {
+			res.Missing = append(res.Missing, id)
+		}
+	}
+	sort.Strings(res.Missing)
 
 	for _, id := range ids {
 		if res.Reference == "" || res.Tips[id].Slot > res.MaxSlot {
@@ -152,7 +183,8 @@ func (m *Metrics) EvaluateConvergence(window uint64) ConvergenceResult {
 			res.Forked = append(res.Forked, id)
 		}
 	}
-	res.Converged = len(res.Lagging) == 0 && len(res.Forked) == 0
+	res.Converged = len(res.Missing) == 0 &&
+		len(res.Lagging) == 0 && len(res.Forked) == 0
 	return res
 }
 
@@ -173,13 +205,18 @@ func chainBlockAt(chain []Tip, slot uint64) (Tip, bool) {
 // which Antithesis arranges to be after fault injection has stopped.
 func (a *Analyzer) CheckEventually() ConvergenceResult {
 	a.readNewLines()
-	res := a.metrics.EvaluateConvergence(a.cfg.ConvergenceWindow)
+	expected := make([]string, 0, a.cfg.Pools)
+	for i := 1; i <= a.cfg.Pools; i++ {
+		expected = append(expected, fmt.Sprintf("p%d", i))
+	}
+	res := a.metrics.EvaluateConvergenceFor(a.cfg.ConvergenceWindow, expected)
 	details := map[string]interface{}{
 		"observed_nodes":  len(res.Tips),
 		"expected_nodes":  a.cfg.Pools,
 		"max_slot":        res.MaxSlot,
 		"reference":       res.Reference,
 		"window_slots":    a.cfg.ConvergenceWindow,
+		"missing":         res.Missing,
 		"lagging":         res.Lagging,
 		"forked":          res.Forked,
 		"hash_unverified": res.HashUnverified,

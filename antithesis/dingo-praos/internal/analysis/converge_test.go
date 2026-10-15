@@ -278,3 +278,50 @@ func TestMetrics_ChainHistoryIsBounded(t *testing.T) {
 	require.Len(t, m.chains["p1"], maxChainHistory)
 	require.Equal(t, uint64(51), m.chains["p1"][0].Slot)
 }
+
+func TestConvergence_MissingExpectedNodeIsNotConverged(t *testing.T) {
+	dir := t.TempDir()
+	writeNodeLog(t, dir, "p1", chainLines(true, "main", 1, 50)...)
+	writeNodeLog(t, dir, "p2", chainLines(true, "main", 1, 50)...)
+	a := NewAnalyzer(
+		&Config{LogDir: dir, Pools: 3, ConvergenceWindow: 5},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	res := a.CheckEventually()
+	require.True(t, res.Comparable)
+	require.False(t, res.Converged)
+	require.Equal(t, []string{"p3"}, res.Missing)
+
+	writeNodeLog(t, dir, "p3", chainLines(true, "main", 1, 50)...)
+	res = a.CheckEventually()
+	require.True(t, res.Converged)
+	require.Empty(t, res.Missing)
+}
+
+func TestConvergence_NoLogsAtAllIsNotComparable(t *testing.T) {
+	a := NewAnalyzer(
+		&Config{LogDir: t.TempDir(), Pools: 3, ConvergenceWindow: 5},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	res := a.CheckEventually()
+	require.False(t, res.Comparable)
+	require.False(t, res.Converged)
+}
+
+func TestMetrics_RollbackLowersChainTip(t *testing.T) {
+	m := NewMetrics()
+	for s := uint64(1); s <= 10; s++ {
+		m.RecordEvent(&BlockEvent{
+			Type: EventChainExtended, NodeID: "p1", Slot: s,
+			BlockHash: blockHash("main", s),
+		})
+	}
+	m.RecordEvent(&BlockEvent{
+		Type: EventChainRolledBack, NodeID: "p1", Slot: 6,
+		BlockHash: blockHash("main", 6),
+	})
+	require.Equal(t, uint64(6), m.Snapshot().ChainTipByNode["p1"])
+
+	m.RecordEvent(&BlockEvent{Type: EventChainRolledBack, NodeID: "p1"})
+	require.Zero(t, m.Snapshot().ChainTipByNode["p1"])
+}

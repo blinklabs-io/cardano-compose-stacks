@@ -145,7 +145,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	if v := os.Getenv("ANALYSIS_CONVERGENCE_WINDOW"); v != "" {
-		n, err := strconv.ParseUint(v, 10, 32)
+		n, err := strconv.ParseUint(v, 10, 64)
 		if err != nil || n < 1 {
 			return nil, fmt.Errorf(
 				"ANALYSIS_CONVERGENCE_WINDOW: must be a positive integer, got %q",

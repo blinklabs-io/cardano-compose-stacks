@@ -68,6 +68,7 @@ func TestLoadConfigAnalysisDurations(t *testing.T) {
 
 func TestLoadConfigConvergenceWindow(t *testing.T) {
 	t.Setenv("ANALYSIS_GENESIS_FILE", "")
+	t.Setenv("ANALYSIS_CONVERGENCE_WINDOW", "")
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
 	require.Equal(t, uint64(10), cfg.ConvergenceWindow)
@@ -76,6 +77,11 @@ func TestLoadConfigConvergenceWindow(t *testing.T) {
 	cfg, err = LoadConfig()
 	require.NoError(t, err)
 	require.Equal(t, uint64(25), cfg.ConvergenceWindow)
+
+	t.Setenv("ANALYSIS_CONVERGENCE_WINDOW", "5000000000")
+	cfg, err = LoadConfig()
+	require.NoError(t, err)
+	require.Equal(t, uint64(5000000000), cfg.ConvergenceWindow)
 
 	for _, bad := range []string{"0", "-1", "x"} {
 		t.Setenv("ANALYSIS_CONVERGENCE_WINDOW", bad)
