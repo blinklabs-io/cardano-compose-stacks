@@ -259,6 +259,7 @@ services:
         condition: service_healthy
     environment:
       TXPUMP_NODE_ADDR: "p2.example:3002"
+      TXPUMP_FALLBACK_ADDR: "p1.example:3002"
       TXPUMP_NETWORK_MAGIC: "42"
       TXPUMP_TX_COUNT_MIN: "10"
       TXPUMP_TX_COUNT_MAX: "50"

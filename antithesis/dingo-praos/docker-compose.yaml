@@ -213,12 +213,13 @@ services:
         condition: service_healthy
     environment:
       TXPUMP_NODE_ADDR: "/ipc/dingo.socket"
+      TXPUMP_FALLBACK_ADDR: "/ipc-backup/node.socket"
       TXPUMP_NETWORK_MAGIC: "42"
       TXPUMP_TX_COUNT_MIN: "10"
       TXPUMP_TX_COUNT_MAX: "50"
       TXPUMP_COOLDOWN_MIN: "5"
       TXPUMP_COOLDOWN_MAX: "15"
-            # Users are the five genesis signing keys. peer_payment moves ADA between
+      # Users are the five genesis signing keys. peer_payment moves ADA between
       # them. Add ",escrow" here, and TXPUMP_ALONZO_GENESIS_FILE once the
       # published txpump image includes the escrow app.
       TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus"
@@ -231,6 +232,7 @@ services:
       - ./testnet.yaml:/testnet/testnet.yaml:ro
       - p1-configs:/configs:ro
       - p1-ipc:/ipc:ro
+      - p2-ipc:/ipc-backup:ro
       - utxo-keys:/utxo-keys:ro
       - logs:/logs
     networks:
@@ -248,6 +250,7 @@ services:
         condition: service_healthy
     environment:
       TXPUMP_NODE_ADDR: "/ipc/node.socket"
+      TXPUMP_FALLBACK_ADDR: "/ipc-backup/dingo.socket"
       TXPUMP_NETWORK_MAGIC: "42"
       TXPUMP_TX_COUNT_MIN: "10"
       TXPUMP_TX_COUNT_MAX: "50"
@@ -263,6 +266,7 @@ services:
     volumes:
       - p2-configs:/configs:ro
       - p2-ipc:/ipc:ro
+      - p1-ipc:/ipc-backup:ro
       - utxo-keys:/utxo-keys:ro
       - logs:/logs
     networks:
