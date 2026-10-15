@@ -32,9 +32,15 @@ var expectedRejectionMarkers = []string{
 }
 
 // IsExpectedRejection reports whether a node's rejection reason is a
-// state-dependent rejection (spent input, expired validity) that must not be
-// treated as evidence of cross-implementation disagreement.
+// state-dependent rejection (spent input, expired validity), or has no traced
+// reason, and so must not be treated as evidence of cross-implementation
+// disagreement.
 func IsExpectedRejection(reason string) bool {
+	if strings.TrimSpace(reason) == "" {
+		// cardano-node traces the reason only at detailed verbosity; an
+		// untraced one cannot be told apart from a state-dependent drop.
+		return true
+	}
 	reason = strings.ToLower(reason)
 	for _, marker := range expectedRejectionMarkers {
 		if strings.Contains(reason, marker) {

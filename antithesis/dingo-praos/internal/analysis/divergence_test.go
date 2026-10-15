@@ -89,11 +89,11 @@ func TestIsExpectedRejection(t *testing.T) {
 		"outside validity interval: start 5, slot 9",
 		`{"kind":"BadInputsUTxO"}`,
 		`{"kind":"OutsideValidityIntervalUTxO"}`,
+		"",
 	} {
 		require.True(t, IsExpectedRejection(reason), reason)
 	}
 	for _, reason := range []string{
-		"",
 		"ScriptWitnessNotValidatingUTXOW",
 		"value not conserved",
 	} {
@@ -145,6 +145,18 @@ func TestMetrics_DivergenceAndExpectedRejection(t *testing.T) {
 	require.Len(t, snap.ExpectedRejections, 2)
 	require.Equal(t, "spent", snap.ExpectedRejections[0].TxID)
 	require.Equal(t, "spent2", snap.ExpectedRejections[1].TxID)
+}
+
+// A rejection with no traced reason cannot be told apart from an expected
+// one, so it is not evidence of disagreement.
+func TestMetrics_RejectionWithoutReasonIsNotADivergence(t *testing.T) {
+	m := NewMetrics()
+	m.RecordEvent(&BlockEvent{Type: EventMempoolAdd, Impl: ImplDingo, NodeID: "n1", TxID: "x"})
+	m.RecordEvent(&BlockEvent{Type: EventMempoolReject, Impl: ImplCardanoNode, NodeID: "n2", TxID: "x"})
+
+	snap := m.Snapshot()
+	require.Empty(t, snap.Divergences)
+	require.Len(t, snap.ExpectedRejections, 1)
 }
 
 func TestAnalyzer_DivergenceFromFixtureLogs(t *testing.T) {
