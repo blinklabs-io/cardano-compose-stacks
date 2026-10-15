@@ -223,7 +223,10 @@ services:
       TXPUMP_TX_COUNT_MAX: "50"
       TXPUMP_COOLDOWN_MIN: "5"
       TXPUMP_COOLDOWN_MAX: "15"
-      TXPUMP_TYPES: "payment,delegation,governance,plutus"
+      # Users are the five genesis signing keys. peer_payment moves ADA between
+      # them. Add ",escrow" here, and TXPUMP_ALONZO_GENESIS_FILE once the
+      # published txpump image includes the escrow app.
+      TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus"
       # No readiness deadline: faults can keep p1 down for minutes before the
       # first submission, and an exited txpump never comes back.
       TXPUMP_STARTUP_TIMEOUT: "0"
@@ -236,6 +239,42 @@ services:
       - p1-configs:/configs:ro
       - utxo-keys:/utxo-keys:ro
       - testnet-config:/testnet-config:ro
+    networks:
+      - testnet
+
+  # --------------------------------------------------------------------------
+  # txpump-cn — second submitter that enters through p2's bridged N2C port, so
+  # traffic reaches the network through both node implementations.
+  # --------------------------------------------------------------------------
+  txpump-cn:
+    image: ghcr.io/blinklabs-io/cardano-txpump:main
+    platform: linux/amd64
+    pull_policy: never
+    init: true
+    user: "0:0"
+    labels:
+      com.antithesis.exclude_from_faults: "network,kill,pause,stop"
+    depends_on:
+      p2:
+        condition: service_healthy
+    environment:
+      TXPUMP_NODE_ADDR: "p2.example:3002"
+      TXPUMP_NETWORK_MAGIC: "42"
+      TXPUMP_TX_COUNT_MIN: "10"
+      TXPUMP_TX_COUNT_MAX: "50"
+      TXPUMP_COOLDOWN_MIN: "5"
+      TXPUMP_COOLDOWN_MAX: "15"
+      TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus"
+      TXPUMP_STARTUP_TIMEOUT: "0"
+      # The analyzer finds txpump.log in any subdirectory of /logs.
+      TXPUMP_LOG_DIR: "/logs/txpump-cn"
+      TXPUMP_GENESIS_FILE: "/configs/configs/shelley-genesis.json"
+      TXPUMP_GENESIS_UTXO_FILE: "/utxo-keys"
+      TXPUMP_CONWAY_GENESIS_FILE: "/utxo-keys/genesis/conway-genesis.json"
+    volumes:
+      - logs:/logs
+      - p2-configs:/configs:ro
+      - utxo-keys:/utxo-keys:ro
     networks:
       - testnet
 

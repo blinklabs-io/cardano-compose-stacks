@@ -73,6 +73,16 @@ Docker Compose selects the host architecture when it pulls multi-architecture
 images, so the local harness can run natively on ARM64 once the Dingo and
 txpump image manifests include that platform.
 
+Two txpump instances drive traffic: `txpump` submits through Dingo (p1) and
+`txpump-cn` through p2's cardano-node socket (bridged to TCP 3002 under Moog).
+Both run `payment`, `peer_payment`, `delegation`, `governance` and `plutus`;
+each genesis signing key is one user, and `peer_payment` moves ADA between
+them. The `escrow` app is not enabled because the published
+`cardano-txpump:main` image does not include it yet. When it does, append
+`,escrow` to `TXPUMP_TYPES` and set `TXPUMP_ALONZO_GENESIS_FILE` to the
+network's Alonzo genesis in both compose files. The blueprint is embedded in
+the image, so nothing needs mounting.
+
 The Moog definition selects `linux/amd64` and uses `pull_policy: never` for
 every service. Antithesis imports the images before boot; its offline test
 environment must use those images without contacting the registry.

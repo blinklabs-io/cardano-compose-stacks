@@ -34,14 +34,17 @@ validate_compose() {
 
   grep -Eq 'CARDANO_PRIVATE_BIND_ADDR:[[:space:]]*"?0\.0\.0\.0"?' "$rendered"
   grep -Eq 'TXPUMP_STARTUP_TIMEOUT:[[:space:]]*"?0"?' "$rendered"
-  grep -Eq 'TXPUMP_TYPES:[[:space:]]*"?payment,delegation,governance,plutus"?' "$rendered"
+  [[ "$(grep -Ec 'TXPUMP_TYPES:[[:space:]]*"?payment,peer_payment,delegation,governance,plutus"?$' "$rendered")" -eq 2 ]]
+  grep -Eq 'TXPUMP_LOG_DIR:[[:space:]]*"?/logs/txpump-cn"?' "$rendered"
   if [[ "$moog" == "true" ]]; then
     grep -Eq 'TXPUMP_NODE_ADDR:[[:space:]]*"?p1\.example:3002"?' "$rendered"
     grep -Eq 'TXPUMP_FALLBACK_ADDR:[[:space:]]*"?p2\.example:3002"?' "$rendered"
+    [[ "$(grep -Ec 'TXPUMP_NODE_ADDR:[[:space:]]*"?p2\.example:3002"?' "$rendered")" -eq 1 ]]
     grep -Fq 'UNIX-CONNECT:/ipc/node.socket' "$rendered"
-    [[ "$(grep -c 'com.antithesis.exclude_from_faults' "$rendered")" -eq 2 ]]
+    [[ "$(grep -c 'com.antithesis.exclude_from_faults' "$rendered")" -eq 3 ]]
   else
     grep -Eq 'TXPUMP_NODE_ADDR:[[:space:]]*"?/ipc/dingo\.socket"?' "$rendered"
+    grep -Eq 'TXPUMP_NODE_ADDR:[[:space:]]*"?/ipc/node\.socket"?' "$rendered"
   fi
   if [[ "$moog" == "true" ]]; then
     for pool in 1 2 3 4 5; do
