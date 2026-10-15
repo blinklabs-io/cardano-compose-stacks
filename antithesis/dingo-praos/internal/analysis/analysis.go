@@ -70,6 +70,7 @@ type Analyzer struct {
 	ingestion           ingestionStats
 	observabilityWarned bool
 	walkWarnings        map[string]struct{}
+	forkProbe           *ForkProbe
 }
 
 // NewAnalyzer creates an Analyzer with the given config and a fresh Metrics.
@@ -86,6 +87,10 @@ func NewAnalyzer(cfg *Config, logger *slog.Logger) *Analyzer {
 			nodeReadable: make(map[string]struct{}),
 		},
 		walkWarnings: make(map[string]struct{}),
+		forkProbe: NewForkProbe(
+			cfg.MaxForkDepth,
+			assertionSink{always: Always, sometimes: Sometimes},
+		),
 	}
 }
 
@@ -140,6 +145,7 @@ func (a *Analyzer) check() {
 		a.reportLivenessAssertions(&snap)
 	}
 	a.reportReachable(&snap)
+	a.forkProbe.Report()
 }
 
 func (a *Analyzer) reportObservability(snap MetricsSnapshot) {
@@ -333,6 +339,9 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 			}
 			bytesRead += int64(len(line))
 			line = strings.TrimRight(line, "\n\r")
+			if role == "node" {
+				a.forkProbe.Observe(state.nodeID, line)
+			}
 			ev := ParseLogLine(line)
 			if ev != nil {
 				ev.NodeID = state.nodeID
