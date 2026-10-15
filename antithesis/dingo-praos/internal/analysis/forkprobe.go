@@ -41,6 +41,9 @@ var forkDepthThresholds = []int{2, 3, 5, 10, 50, 100, 200}
 // meet in the chain tree.
 const hashKeyLen = 8
 
+// A block is identified by its abbreviated hash together with its slot, so
+// two blocks that share a hash prefix are still told apart.
+
 // minAncestorWalk bounds how far back a chain is walked when a host is
 // compared with the longest chain; the bound is raised to twice k.
 const minAncestorWalk = 1024
@@ -123,21 +126,22 @@ func (t *chainTree) setTip(node string, tip chainPoint) {
 }
 
 // depth returns the cluster fork depth: the largest number of blocks any
-// node would have to roll back to reach the longest chain. It reports
-// false when fewer than two nodes have a tip or no comparison could be
-// made within walkCap blocks.
-func (t *chainTree) depth(walkCap int) (int, bool) {
+// node would have to roll back to reach the longest chain. Only tips of
+// nodes other than the leader are compared; matched counts those whose
+// ancestry reaches the leader's chain within walkCap blocks and unmatched
+// those that do not, which are unverifiable rather than safe.
+func (t *chainTree) depth(walkCap int) (maxDepth, matched, unmatched int) {
 	if len(t.tips) < 2 {
-		return 0, false
+		return 0, 0, 0
 	}
 	var leader chainPoint
-	first := true
-	for _, tip := range t.tips {
-		if first || t.height[tip.hash] > t.height[leader.hash] ||
+	leaderNode := ""
+	for node, tip := range t.tips {
+		if leaderNode == "" || t.height[tip.hash] > t.height[leader.hash] ||
 			(t.height[tip.hash] == t.height[leader.hash] &&
-				tip.hash < leader.hash) {
-			leader = tip
-			first = false
+				(tip.hash < leader.hash ||
+					(tip.hash == leader.hash && node < leaderNode))) {
+			leader, leaderNode = tip, node
 		}
 	}
 	onLeader := make(map[string]struct{})
@@ -149,9 +153,12 @@ func (t *chainTree) depth(walkCap int) (int, bool) {
 		}
 		h = next
 	}
-	maxDepth, found := 0, false
-	for _, tip := range t.tips {
+	for node, tip := range t.tips {
+		if node == leaderNode {
+			continue
+		}
 		h := tip.hash
+		found := false
 		for steps := 0; steps <= walkCap; steps++ {
 			if _, ok := onLeader[h]; ok {
 				found = true
@@ -166,8 +173,13 @@ func (t *chainTree) depth(walkCap int) (int, bool) {
 			}
 			h = next
 		}
+		if found {
+			matched++
+		} else {
+			unmatched++
+		}
 	}
-	return maxDepth, found
+	return maxDepth, matched, unmatched
 }
 
 const genesisKey = "<genesis>"
@@ -194,6 +206,12 @@ type ForkProbe struct {
 	maxDepth int
 	curDepth int
 
+	// seen holds chain events already queued, so lines replayed after a log
+	// is rewritten in place are not applied a second time.
+	seen map[string]struct{}
+
+	compared   bool
+	unmatched  int
 	violations int
 	first      *criticalViolation
 	exempted   int
@@ -210,6 +228,7 @@ func NewForkProbe(k int, sink assertionSink) *ForkProbe {
 		k:            k,
 		sink:         sink,
 		tree:         newChainTree(),
+		seen:         make(map[string]struct{}),
 		shuttingDown: make(map[string]bool),
 	}
 }
@@ -242,6 +261,20 @@ func (p *ForkProbe) Observe(nodeID, line string) {
 	}
 }
 
+// queue records a chain event unless the same node already reported the
+// identical timestamped event.
+func (p *ForkProbe) queue(ev forkEvent) {
+	if !ev.at.IsZero() {
+		key := ev.node + "|" + strconv.Itoa(int(ev.kind)) + "|" + ev.tip.hash +
+			"|" + strconv.FormatInt(ev.at.UnixNano(), 10)
+		if _, dup := p.seen[key]; dup {
+			return
+		}
+		p.seen[key] = struct{}{}
+	}
+	p.pending = append(p.pending, ev)
+}
+
 func (p *ForkProbe) observeCardanoNode(nodeID string, raw map[string]interface{}) {
 	p.checkSeverity(nodeID, raw, cardanoSeverityCritical(raw), cardanoAsyncCancelled(raw))
 	name := cardanoNodeEventName(raw)
@@ -264,11 +297,11 @@ func (p *ForkProbe) observeCardanoNode(nodeID string, raw map[string]interface{}
 	if !ok || err != nil || hash == "" {
 		return
 	}
-	p.pending = append(p.pending, forkEvent{
+	p.queue(forkEvent{
 		at:   extractTimestamp(raw),
 		node: nodeID,
 		kind: kind,
-		tip:  chainPoint{hash: hashKey(hash), slot: slot},
+		tip:  chainPoint{hash: hashKey(hash, slot), slot: slot},
 	})
 }
 
@@ -301,15 +334,19 @@ func (p *ForkProbe) observeDingo(nodeID string, raw map[string]interface{}) {
 	default:
 		return
 	}
-	hash, slot, ok := dingoTipFromMessage(lower)
-	if !ok {
-		return
+	hash, slot := extractHash(raw), extractSlot(raw)
+	if hash == "" || slot == 0 {
+		var ok bool
+		hash, slot, ok = dingoTipFromMessage(lower)
+		if !ok {
+			return
+		}
 	}
-	p.pending = append(p.pending, forkEvent{
+	p.queue(forkEvent{
 		at:   extractTimestamp(raw),
 		node: nodeID,
 		kind: kind,
-		tip:  chainPoint{hash: hashKey(hash), slot: slot},
+		tip:  chainPoint{hash: hashKey(hash, slot), slot: slot},
 	})
 }
 
@@ -330,12 +367,15 @@ func dingoTipFromMessage(msg string) (string, uint64, bool) {
 	return hash, slot, true
 }
 
-func hashKey(hash string) string {
+func hashKey(hash string, slot uint64) string {
 	hash = strings.ToLower(hash)
-	if len(hash) > hashKeyLen && hash != genesisKey {
-		return hash[:hashKeyLen]
+	if hash == genesisKey {
+		return hash
 	}
-	return hash
+	if len(hash) > hashKeyLen {
+		hash = hash[:hashKeyLen]
+	}
+	return hash + "@" + strconv.FormatUint(slot, 10)
 }
 
 // checkSeverity counts an entry as a violation when it is critical and not
@@ -426,8 +466,16 @@ func (p *ForkProbe) Report() {
 			"current_fork_depth": p.curDepth,
 			"hosts":              len(p.tree.tips),
 		}
-		p.sink.sometimes(p.maxDepth > 0, assertForkObserved, details)
-		p.sink.always(p.maxDepth < p.k, assertForkDepth, details)
+		details["unmatched_hosts"] = p.unmatched
+		// With no shared ancestor, or a host whose chain never meets the
+		// longest one, depth below k is unproven; only a measured depth of
+		// k or more is a verdict then.
+		if p.compared {
+			p.sink.sometimes(p.maxDepth > 0, assertForkObserved, details)
+		}
+		if p.compared && (p.unmatched == 0 || p.maxDepth >= p.k) {
+			p.sink.always(p.maxDepth < p.k, assertForkDepth, details)
+		}
 		for _, threshold := range forkDepthThresholds {
 			if threshold >= p.k || p.maxDepth < threshold {
 				continue
@@ -466,7 +514,10 @@ func (p *ForkProbe) replay() {
 		case forkSwitch:
 			p.tree.setTip(ev.node, ev.tip)
 		}
-		if d, ok := p.tree.depth(walkCap); ok {
+		d, matched, unmatched := p.tree.depth(walkCap)
+		p.unmatched = unmatched
+		if matched > 0 {
+			p.compared = true
 			p.curDepth = d
 			if d > p.maxDepth {
 				p.maxDepth = d

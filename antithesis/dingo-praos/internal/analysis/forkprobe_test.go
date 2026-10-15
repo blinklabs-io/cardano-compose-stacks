@@ -235,3 +235,103 @@ func TestAnalyzerWiresForkProbe(t *testing.T) {
 	require.True(t, rec.mustFind(t, "cluster fork observed").ok)
 	require.Equal(t, 2, a.forkProbe.MaxForkDepth())
 }
+
+func dingoMsgLine(ts string, hash string, slot int) string {
+	return fmt.Sprintf(`{"time":%q,"level":"INFO","msg":"chain extended, new tip: %s at slot %d","component":"ledger"}`, ts, hash, slot)
+}
+
+func dingoFieldLine(ts string, hash string, slot int) string {
+	return fmt.Sprintf(`{"time":%q,"level":"INFO","msg":"chain extended","slot":%d,"block_hash":%q}`, ts, slot, hash)
+}
+
+func fullHash(prefix string) string {
+	return prefix + strings.Repeat("0", 64-len(prefix))
+}
+
+func TestForkProbeDisconnectedTipsGiveNoDepthVerdict(t *testing.T) {
+	rec := &recorder{}
+	p := NewForkProbe(40, rec.sink())
+	p.Observe("p1", dingoMsgLine("2026-10-15T10:00:01Z", fullHash("aa000001"), 1))
+	p.Observe("p1", dingoMsgLine("2026-10-15T10:00:02Z", fullHash("aa000002"), 2))
+	p.Observe("p2", dingoMsgLine("2026-10-15T10:00:03Z", fullHash("bb000001"), 3))
+	p.Report()
+	_, has := rec.find(assertForkDepth)
+	require.False(t, has, "tips with no shared ancestor must not pass the depth property")
+}
+
+func TestForkProbeDisconnectedTipAtKStillFails(t *testing.T) {
+	rec := &recorder{}
+	p := NewForkProbe(2, rec.sink())
+	for i, h := range []string{"aa000001", "aa000002", "aa000003"} {
+		ts := fmt.Sprintf("2026-10-15T10:00:%02dZ", i+1)
+		p.Observe("p1", dingoMsgLine(ts, fullHash(h), i+1))
+		p.Observe("p2", dingoMsgLine(ts, fullHash(h), i+1))
+	}
+	p.Observe("p3", dingoMsgLine("2026-10-15T10:00:10Z", fullHash("cc000001"), 9))
+	for i, h := range []string{"dd000004", "dd000005", "dd000006"} {
+		p.Observe("p2", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", 11+i), fullHash(h), 4+i))
+	}
+	for i, h := range []string{"ee000004", "ee000005"} {
+		p.Observe("p1", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", 11+i), fullHash(h), 4+i))
+	}
+	p.Report()
+	a := rec.mustFind(t, assertForkDepth)
+	require.False(t, a.ok)
+}
+
+func TestForkProbeReadsDingoFieldRecords(t *testing.T) {
+	rec := &recorder{}
+	p := NewForkProbe(40, rec.sink())
+	p.Observe("p1", dingoFieldLine("2026-10-15T10:00:01Z", fullHash("aa000001"), 1))
+	p.Observe("p2", dingoFieldLine("2026-10-15T10:00:01Z", fullHash("aa000001"), 1))
+	p.Observe("p1", dingoFieldLine("2026-10-15T10:00:02Z", fullHash("aa000002"), 2))
+	p.Observe("p1", dingoFieldLine("2026-10-15T10:00:03Z", fullHash("aa000003"), 3))
+	p.Observe("p2", dingoFieldLine("2026-10-15T10:00:04Z", fullHash("bb000002"), 4))
+	p.Report()
+	require.Equal(t, 1, p.MaxForkDepth())
+	require.True(t, rec.mustFind(t, assertForkObserved).ok)
+}
+
+func TestForkProbeBlocksSharingAHashPrefixStayDistinct(t *testing.T) {
+	p := NewForkProbe(40, (&recorder{}).sink())
+	for i, h := range []string{"aa000001", "aa000001", "aa000001", "aa000001"} {
+		// Same 8-character prefix, different full hash and slot.
+		full := h + fmt.Sprintf("%056d", i)
+		p.Observe("p1", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", i+1), full, i+1))
+	}
+	p.Report()
+	tip := p.tree.tips["p1"]
+	require.Equal(t, 4, p.tree.height[tip.hash])
+}
+
+func TestForkProbeReplayedLogLinesDoNotRegressTip(t *testing.T) {
+	rec := &recorder{}
+	p := NewForkProbe(40, rec.sink())
+	rollback := func(ts, hash string, slot int) string {
+		return fmt.Sprintf(`{"time":%q,"level":"INFO","msg":"chain rolled back, new tip: %s at slot %d","component":"ledger"}`, ts, hash, slot)
+	}
+	p1 := []string{
+		dingoMsgLine("2026-10-15T10:00:01Z", fullHash("aa000001"), 1),
+		dingoMsgLine("2026-10-15T10:00:02Z", fullHash("aa000002"), 2),
+		dingoMsgLine("2026-10-15T10:00:03Z", fullHash("aa000003"), 3),
+		rollback("2026-10-15T10:00:04Z", fullHash("aa000001"), 1),
+		dingoMsgLine("2026-10-15T10:00:05Z", fullHash("bb000002"), 2),
+		dingoMsgLine("2026-10-15T10:00:06Z", fullHash("bb000003"), 3),
+		dingoMsgLine("2026-10-15T10:00:07Z", fullHash("bb000004"), 4),
+	}
+	for _, l := range p1 {
+		p.Observe("p1", l)
+	}
+	for _, l := range []string{p1[0], p1[4], p1[5], p1[6]} {
+		p.Observe("p2", l)
+	}
+	p.Report()
+	require.Equal(t, 0, p.currentDepth())
+
+	// p1's log is rewritten in place and read again from the start.
+	for _, l := range p1[:3] {
+		p.Observe("p1", l)
+	}
+	p.Report()
+	require.Equal(t, 0, p.currentDepth(), "replayed lines must not move the tip")
+}
