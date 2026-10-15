@@ -165,7 +165,7 @@ the container; the host port is published on loopback only). Grafana has Prometh
 | Grafana | <http://localhost:3000> (`admin` / `GRAFANA_ADMIN_PASSWORD`, default `admin`) |
 | OTLP HTTP / gRPC | `localhost:4318` / `localhost:4317` |
 
-Set `GRAFANA_ADMIN_PASSWORD` before exposing Grafana beyond localhost.
+The telemetry ports are published on loopback only. Set `GRAFANA_ADMIN_PASSWORD` before exposing Grafana beyond localhost.
 
 To run only the telemetry services and point an existing Dingo at them, use
 the `otel` profile and set `DINGO_TRACING_ENABLED=true` and
