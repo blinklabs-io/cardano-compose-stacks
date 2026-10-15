@@ -90,7 +90,11 @@ func (m *Metrics) recordNodeVerdict(ev *BlockEvent) {
 		v.accepted[ev.Impl] = struct{}{}
 		return
 	}
-	if _, seen := v.rejected[ev.Impl]; !seen {
+	// Keep the first reason, except that a reason that is not
+	// state-dependent replaces one that is, so a spent-input rejection on
+	// one node cannot hide a script failure on another.
+	prior, seen := v.rejected[ev.Impl]
+	if !seen || (IsExpectedRejection(prior) && !IsExpectedRejection(ev.Reason)) {
 		v.rejected[ev.Impl] = ev.Reason
 	}
 }
@@ -109,6 +113,9 @@ func (m *Metrics) classifyVerdicts() ([]Divergence, []ExpectedRejection) {
 	sort.Strings(ids)
 	for _, id := range ids {
 		v := m.verdicts[id]
+		if v == nil {
+			continue
+		}
 		var rejectedBy, acceptedBy []string
 		var reason string
 		for impl, r := range v.rejected {

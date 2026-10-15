@@ -15,10 +15,12 @@
 package analysis
 
 import (
+	"bytes"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -157,6 +159,31 @@ func TestMetrics_RejectionWithoutReasonIsNotADivergence(t *testing.T) {
 	snap := m.Snapshot()
 	require.Empty(t, snap.Divergences)
 	require.Len(t, snap.ExpectedRejections, 1)
+}
+
+// A state-dependent rejection on one node of an implementation must not hide
+// a script failure another node of it reported for the same transaction.
+func TestMetrics_ExpectedRejectionDoesNotMaskLaterRealOne(t *testing.T) {
+	m := NewMetrics()
+	m.RecordEvent(&BlockEvent{Type: EventMempoolAdd, Impl: ImplDingo, NodeID: "d1", TxID: "x"})
+	m.RecordEvent(&BlockEvent{Type: EventMempoolReject, Impl: ImplCardanoNode, NodeID: "c1", TxID: "x", Reason: "bad input(s)"})
+	m.RecordEvent(&BlockEvent{Type: EventMempoolReject, Impl: ImplCardanoNode, NodeID: "c2", TxID: "x", Reason: "script failed"})
+
+	snap := m.Snapshot()
+	require.Len(t, snap.Divergences, 1)
+	require.Equal(t, "script failed", snap.Divergences[0].Reason)
+}
+
+// A divergence is reported once, not on every periodic check.
+func TestAnalyzer_ReportsEachDivergenceOnce(t *testing.T) {
+	var buf bytes.Buffer
+	a := NewAnalyzer(&Config{}, slog.New(slog.NewTextHandler(&buf, nil)))
+	snap := &MetricsSnapshot{Divergences: []Divergence{{TxID: "x", Reason: "r"}}}
+
+	a.reportDivergence(snap)
+	a.reportDivergence(snap)
+
+	require.Equal(t, 1, strings.Count(buf.String(), "cross-implementation divergence"))
 }
 
 func TestAnalyzer_DivergenceFromFixtureLogs(t *testing.T) {

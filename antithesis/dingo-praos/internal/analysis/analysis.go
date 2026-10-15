@@ -70,6 +70,9 @@ type Analyzer struct {
 	ingestion           ingestionStats
 	observabilityWarned bool
 	walkWarnings        map[string]struct{}
+	// reportedDivergences keeps each divergence to one log line: the
+	// snapshot is recomputed on every periodic check.
+	reportedDivergences map[string]struct{}
 }
 
 // NewAnalyzer creates an Analyzer with the given config and a fresh Metrics.
@@ -593,6 +596,13 @@ func (a *Analyzer) reportDivergence(snap *MetricsSnapshot) {
 		},
 	)
 	for _, d := range snap.Divergences {
+		if a.reportedDivergences == nil {
+			a.reportedDivergences = make(map[string]struct{})
+		}
+		if _, done := a.reportedDivergences[d.TxID]; done {
+			continue
+		}
+		a.reportedDivergences[d.TxID] = struct{}{}
 		a.logger.Error(
 			"cross-implementation divergence",
 			"tx_id", d.TxID,
