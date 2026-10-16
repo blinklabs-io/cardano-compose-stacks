@@ -15,6 +15,7 @@ This docker-compose setup provides a comprehensive environment for running Carda
 - **cardano-db-sync**: This service syncs the Cardano blockchain data to a PostgreSQL database. It depends on both the cardano-node and postgres services to be healthy before starting.
 
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
+- **dingo**, **otel-collector**, and **jaeger**: An optional OpenTelemetry stack for Dingo, started by the `dingo-otel` profile.
 - **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node and Bursa, and provides a preloaded service health dashboard.
 
 ## Additional stacks
@@ -40,6 +41,42 @@ docker compose --profile observability up -d
 ```
 
 Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node and Bursa when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
+
+### Start Dingo with OpenTelemetry
+
+Start Dingo with tracing and metrics collection using the `dingo-otel` profile:
+
+```bash
+docker compose --profile dingo-otel up -d
+```
+
+This starts `dingo`, an OpenTelemetry Collector (`otel-collector`), Jaeger, and
+the Prometheus and Grafana services from the observability stack. Dingo sends
+spans over OTLP/HTTP to the collector, which forwards them to Jaeger.
+Prometheus scrapes Dingo's metrics on port 12798; `DINGO_METRICS_BIND_ADDR` is
+set so Prometheus can reach it, and the host port binds to localhost.
+Grafana has Prometheus and Jaeger as data sources.
+
+| Service | URL |
+|---------|-----|
+| Jaeger UI | <http://localhost:16686> |
+| Prometheus | <http://localhost:9091> |
+| Grafana | <http://localhost:3000> |
+| OTLP HTTP / gRPC | `localhost:4318` / `localhost:4317` |
+
+All of these ports bind to localhost. Dingo's relay port 3001 conflicts with
+`cardano-node`, so set `DINGO_NODE_PORT` to run both.
+
+The `otel` profile starts only the collector, Jaeger, Prometheus, and Grafana,
+for use with a Dingo you run elsewhere on the same host. Set
+`DINGO_TRACING_ENABLED=true` and
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` on that Dingo, and add its
+metrics address to `observability/prometheus.yml`. The collector's OTLP ports
+bind to localhost by default, so a Dingo on another host cannot reach them
+directly. For a remote Dingo, use a private tunnel that forwards the collector
+port to the Dingo host, then set the endpoint to that tunnel's local address
+(for example, `http://localhost:4318` when it listens on port 4318). Do not
+expose the OTLP ports publicly.
 
 ### Start Just the Cardano Node
 
