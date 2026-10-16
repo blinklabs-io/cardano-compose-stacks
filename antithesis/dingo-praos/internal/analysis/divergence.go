@@ -22,19 +22,21 @@ import (
 // expectedRejectionMarkers are lowercase fragments of rejection reasons that
 // depend on ledger state at submission time rather than on implementation
 // behavior: the same transaction is legitimately refused once its inputs are
-// spent or its validity interval has passed. They cover the Dingo/gouroboros
-// error text and the cardano-node constructor names.
+// spent or its validity interval has passed, or a local resource limit was
+// reached. They cover the Dingo/gouroboros error text and the cardano-node
+// constructor names.
 var expectedRejectionMarkers = []string{
 	"bad input",
 	"badinputsutxo",
 	"outside validity interval",
 	"outsidevalidityinterval",
+	"mempool full",
 }
 
 // IsExpectedRejection reports whether a node's rejection reason is a
-// state-dependent rejection (spent input, expired validity), or has no traced
-// reason, and so must not be treated as evidence of cross-implementation
-// disagreement.
+// state-dependent rejection (spent input, expired validity), a local resource
+// limit, or has no traced reason, and so must not be treated as evidence of
+// cross-implementation disagreement.
 func IsExpectedRejection(reason string) bool {
 	if strings.TrimSpace(reason) == "" {
 		// cardano-node traces the reason only at detailed verbosity; an

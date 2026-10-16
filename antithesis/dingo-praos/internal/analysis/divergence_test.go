@@ -136,6 +136,8 @@ func TestMetrics_DivergenceAndExpectedRejection(t *testing.T) {
 	rej(ImplDingo, "both", "script failed")
 	rej(ImplCardanoNode, "both", "script failed")
 	add(ImplDingo, "only-dingo-saw")
+	add(ImplCardanoNode, "capacity")
+	rej(ImplDingo, "capacity", "mempool full: current size=100")
 
 	snap := m.Snapshot()
 	require.Len(t, snap.Divergences, 1)
@@ -144,9 +146,12 @@ func TestMetrics_DivergenceAndExpectedRejection(t *testing.T) {
 	require.Equal(t, []string{ImplDingo}, d.AcceptedBy)
 	require.Equal(t, []string{ImplCardanoNode}, d.RejectedBy)
 	require.Equal(t, "script failed", d.Reason)
-	require.Len(t, snap.ExpectedRejections, 2)
-	require.Equal(t, "spent", snap.ExpectedRejections[0].TxID)
-	require.Equal(t, "spent2", snap.ExpectedRejections[1].TxID)
+	require.Len(t, snap.ExpectedRejections, 3)
+	var expectedIDs []string
+	for _, rejection := range snap.ExpectedRejections {
+		expectedIDs = append(expectedIDs, rejection.TxID)
+	}
+	require.ElementsMatch(t, []string{"spent", "spent2", "capacity"}, expectedIDs)
 }
 
 // A rejection with no traced reason cannot be told apart from an expected
