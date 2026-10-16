@@ -89,6 +89,17 @@ type Metrics struct {
 
 	// plutusProcessed counts submitted plutus transactions from txpump logs.
 	plutusProcessed int
+
+	// submittedByType and rejectedByType count txpump outcomes per tx type
+	// (the app name for registered apps); the User variants key on
+	// "<type>/<user>" and only count entries that name a user.
+	submittedByType map[string]int
+	rejectedByType  map[string]int
+	submittedByUser map[string]int
+	rejectedByUser  map[string]int
+
+	// verdicts holds each implementation's mempool decision per tx ID.
+	verdicts map[string]*txVerdict
 }
 
 // NewMetrics allocates and returns an empty Metrics.
@@ -100,6 +111,12 @@ func NewMetrics() *Metrics {
 		hashByNodeSlot: make(map[string]string),
 		SubmittedTxIDs: make(map[string]int),
 		confirmedTxIDs: make(map[string]int),
+
+		submittedByType: make(map[string]int),
+		rejectedByType:  make(map[string]int),
+		submittedByUser: make(map[string]int),
+		rejectedByUser:  make(map[string]int),
+		verdicts:        make(map[string]*txVerdict),
 	}
 }
 
@@ -119,6 +136,11 @@ func (m *Metrics) RecordEvent(ev *BlockEvent) {
 		m.recordChainExtended(ev)
 	case EventMempoolAdd:
 		m.MempoolTxCount++
+		m.recordNodeVerdict(ev)
+	case EventMempoolReject:
+		m.recordNodeVerdict(ev)
+	case EventTxRejectedBySubmitter:
+		m.recordSubmitterOutcome(ev, false)
 	case EventTxConfirmed:
 		m.MempoolConfirmedCount++
 		if ev.TxID != "" {
@@ -174,6 +196,7 @@ func (m *Metrics) recordForgedBlock(ev *BlockEvent) {
 
 // recordTxSubmitted handles an EventTxSubmitted under the held lock.
 func (m *Metrics) recordTxSubmitted(ev *BlockEvent) {
+	m.recordSubmitterOutcome(ev, true)
 	if ev.TxID != "" {
 		m.SubmittedTxIDs[ev.TxID]++
 		if m.SubmittedTxIDs[ev.TxID] > 1 {
@@ -191,6 +214,19 @@ func (m *Metrics) recordTxSubmitted(ev *BlockEvent) {
 		m.governanceProcessed++
 	case "plutus":
 		m.plutusProcessed++
+	}
+}
+
+// recordSubmitterOutcome counts a txpump outcome per type and, when the log
+// names one, per user.
+func (m *Metrics) recordSubmitterOutcome(ev *BlockEvent, accepted bool) {
+	byType, byUser := m.submittedByType, m.submittedByUser
+	if !accepted {
+		byType, byUser = m.rejectedByType, m.rejectedByUser
+	}
+	byType[ev.TxType]++
+	if ev.User != "" {
+		byUser[ev.TxType+"/"+ev.User]++
 	}
 }
 
@@ -222,6 +258,12 @@ type MetricsSnapshot struct {
 	ConfirmedSubmittedTxCount int
 	DuplicateSubmissions      int
 	SubmittedTxIDs            map[string]int
+	SubmittedByType           map[string]int
+	RejectedByType            map[string]int
+	SubmittedByUser           map[string]int
+	RejectedByUser            map[string]int
+	Divergences               []Divergence
+	ExpectedRejections        []ExpectedRejection
 }
 
 // Snapshot returns a point-in-time copy of the metrics. The returned value
@@ -250,6 +292,11 @@ func (m *Metrics) Snapshot() MetricsSnapshot {
 		DuplicateSubmissions:      m.DuplicateSubmissions,
 		SubmittedTxIDs:            make(map[string]int, len(m.SubmittedTxIDs)),
 	}
+	snap.SubmittedByType = copyCounts(m.submittedByType)
+	snap.RejectedByType = copyCounts(m.rejectedByType)
+	snap.SubmittedByUser = copyCounts(m.submittedByUser)
+	snap.RejectedByUser = copyCounts(m.rejectedByUser)
+	snap.Divergences, snap.ExpectedRejections = m.classifyVerdicts()
 	for k, v := range m.BlocksByNode {
 		snap.BlocksByNode[k] = v
 	}
@@ -269,6 +316,14 @@ func (m *Metrics) Snapshot() MetricsSnapshot {
 		snap.SlotRegressions, m.SlotRegressions...,
 	)
 	return snap
+}
+
+func copyCounts(in map[string]int) map[string]int {
+	out := make(map[string]int, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 // nodeSlotKey returns a map key that uniquely identifies a (node, slot) pair.

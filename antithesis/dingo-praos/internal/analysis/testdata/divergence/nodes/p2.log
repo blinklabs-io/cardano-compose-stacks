@@ -1,0 +1,5 @@
+{"at":"2026-01-01T00:00:01Z","ns":"Mempool.AddedTx","data":{"kind":"TraceMempoolAddedTx","tx":{"txid":"aa01"}}}
+{"at":"2026-01-01T00:00:02Z","ns":"Mempool.RejectedTx","data":{"kind":"TraceMempoolRejectedTx","tx":{"txid":"bb02"},"err":{"kind":"ConwayUtxowFailure","error":"ScriptWitnessNotValidatingUTXOW"}}}
+{"at":"2026-01-01T00:00:03Z","ns":"Mempool.RejectedTx","data":{"kind":"TraceMempoolRejectedTx","tx":{"txid":"cc03"},"err":{"kind":"BadInputsUTxO"}}}
+{"at":"2026-01-01T00:00:04Z","ns":"Mempool.AddedTx","data":{"kind":"TraceMempoolAddedTx","tx":{"txid":"dd04"}}}
+{"at":"2026-01-01T00:00:05Z","ns":"Mempool.RejectedTx","data":{"kind":"TraceMempoolRejectedTx","tx":{"txid":"ee05"},"err":{"kind":"OutsideValidityIntervalUTxO"}}}
