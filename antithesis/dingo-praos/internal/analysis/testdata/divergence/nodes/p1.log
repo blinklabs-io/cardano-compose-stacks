@@ -1,0 +1,5 @@
+{"time":"2026-01-01T00:00:01Z","msg":"added transaction","component":"mempool","tx_hash":"aa01"}
+{"time":"2026-01-01T00:00:02Z","msg":"added transaction","component":"mempool","tx_hash":"bb02"}
+{"time":"2026-01-01T00:00:03Z","msg":"failed to add tx cc03 to mempool: validate transaction: bad input(s): ab#0","component":"network","protocol":"tx-submission"}
+{"time":"2026-01-01T00:00:04Z","msg":"added transaction","component":"mempool","tx_hash":"dd04"}
+{"time":"2026-01-01T00:00:05Z","msg":"failed to add tx ee05 to mempool: validate transaction: outside validity interval: start 5, slot 9","component":"network","protocol":"tx-submission"}
