@@ -49,6 +49,11 @@ const (
 	// a confirmed block.
 	EventTxConfirmed
 
+	// EventChainRolledBack indicates the node's local chain was rolled back
+	// to a new tip. Slot is zero and BlockHash empty for a rollback to
+	// the origin.
+	EventChainRolledBack
+
 	// EventTxSubmitted indicates txpump successfully submitted a transaction.
 	// The TxType field on BlockEvent identifies the tx type (payment,
 	// delegation, governance, plutus).
@@ -176,6 +181,17 @@ func parseDingoLine(raw map[string]interface{}) *BlockEvent {
 		evType = EventForgedBlock
 	case strings.HasPrefix(msg, "chain extended"):
 		evType = EventChainExtended
+	case strings.HasPrefix(msg, "chain rolled back"):
+		slot, hash, ok := parseRollbackMsg(msg)
+		if !ok {
+			return nil
+		}
+		return &BlockEvent{
+			Type:      EventChainRolledBack,
+			Timestamp: extractTimestamp(raw),
+			Slot:      slot,
+			BlockHash: hash,
+		}
 	case msg == "added transaction" && componentIs(raw, "mempool"):
 		evType = EventMempoolAdd
 	case msg == "confirmed transaction" && componentIs(raw, "mempool"):
@@ -199,6 +215,10 @@ func parseDingoLine(raw map[string]interface{}) *BlockEvent {
 		ev.Slot = extractSlotFromMsg(msg)
 	}
 	ev.BlockHash = extractHash(raw)
+	// Dingo logs the tip hash only inside the message text.
+	if ev.BlockHash == "" && evType == EventChainExtended {
+		ev.BlockHash = extractTipHashFromMsg(msg)
+	}
 	ev.TxID = extractTxID(raw)
 	return ev
 }
@@ -354,6 +374,89 @@ func extractSlotFromMsg(msg string) uint64 {
 		return 0
 	}
 	return n
+}
+
+// extractTipHashFromMsg parses the lower-case hex hash embedded in a dingo
+// log message of the form "chain extended, new tip: <hash> at slot <N>".
+// It returns "" when the pattern is absent or the token is not hex, which
+// includes the "<genesis>" placeholder of a rollback to the origin.
+func extractTipHashFromMsg(msg string) string {
+	const marker = "new tip: "
+	idx := strings.Index(msg, marker)
+	if idx < 0 {
+		return ""
+	}
+	token, _, _ := strings.Cut(strings.TrimSpace(msg[idx+len(marker):]), " ")
+	token = strings.ToLower(token)
+	if token == "" {
+		return ""
+	}
+	for _, r := range token {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return ""
+		}
+	}
+	return token
+}
+
+// parseRollbackMsg parses "chain rolled back, new tip: <hash|<genesis>> at
+// slot <N>". It reports false when the slot is missing or the tip is neither
+// a hex hash nor the genesis placeholder, so a malformed line is never read
+// as a rollback to the origin.
+func parseRollbackMsg(msg string) (slot uint64, hash string, ok bool) {
+	if !strings.Contains(msg, "new tip: ") ||
+		!strings.Contains(msg, " at slot ") {
+		return 0, "", false
+	}
+	const marker = " at slot "
+	rest := msg[strings.LastIndex(msg, marker)+len(marker):]
+	digits := strings.TrimSpace(rest)
+	if end := strings.IndexFunc(digits, func(r rune) bool {
+		return r < '0' || r > '9'
+	}); end >= 0 {
+		digits = digits[:end]
+	}
+	n, err := strconv.ParseUint(digits, 10, 64)
+	if err != nil {
+		return 0, "", false
+	}
+	hash = extractTipHashFromMsg(msg)
+	if hash == "" && !rollbackToOrigin(msg) {
+		return 0, "", false
+	}
+	return n, hash, true
+}
+
+// rollbackToOrigin reports whether the message names the genesis placeholder
+// as the new tip.
+func rollbackToOrigin(msg string) bool {
+	_, rest, found := strings.Cut(msg, "new tip: ")
+	if !found {
+		return false
+	}
+	token, _, _ := strings.Cut(strings.TrimSpace(rest), " ")
+	return token == "<genesis>"
+}
+
+// minHashPrefix is the shortest hash prefix that identifies a block.
+// cardano-node prints block hashes abbreviated to 8 hex characters while
+// dingo prints all 64.
+const minHashPrefix = 8
+
+// hashesMatch reports whether two block hashes can name the same block.
+// Hashes are compared case-insensitively and an abbreviated hash matches any
+// hash it prefixes, provided it carries at least minHashPrefix characters.
+// An empty or shorter hash never matches: it identifies nothing.
+func hashesMatch(a, b string) bool {
+	a = strings.ToLower(strings.TrimSpace(a))
+	b = strings.ToLower(strings.TrimSpace(b))
+	if a == "" || b == "" {
+		return false
+	}
+	if len(a) > len(b) {
+		a, b = b, a
+	}
+	return len(a) >= minHashPrefix && strings.HasPrefix(b, a)
 }
 
 // extractSlotCardano pulls slot from a nested cardano-node data object.

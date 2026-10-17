@@ -18,6 +18,33 @@ The Dingo repository publishes its instrumented image. This repository builds
 the configurator and analyzer in `.github/workflows/antithesis.yml`; the
 separate `cardano-txpump` repository publishes the workload image.
 
+## Post-fault convergence check
+
+The analysis image carries `eventually_converged.sh` under
+`/opt/antithesis/test/v1/dingo-praos/`. Antithesis runs it after fault
+injection stops. It waits briefly, then runs `analysis eventually`, which
+reads the node logs once, derives each node's final tip from them, and checks
+that every tip is within `ANALYSIS_CONVERGENCE_WINDOW` slots (default 10) of
+the longest tip. The command reads the same `ANALYSIS_*` environment as the
+daemon, so it uses the same log directory.
+
+What the result means:
+
+- Tips come only from the logs. A node that logged no chain event is not
+  observed.
+- With fewer than two observed nodes no convergence assertion is emitted, only
+  a reachability marker saying the check ran but could not compare.
+- With two or more observed nodes, a configured node (`p1` to `pN`) that has no
+  tip fails the assertion.
+- Chain identity is checked by comparing block hashes at the lagging node's tip
+  slot. Where a hash is missing, or the longest chain has no block at that
+  slot, the node passes on slot distance alone and the result is marked hash
+  unverified; this is not a failed or confirmed identity check.
+- Hash prefixes shorter than 8 characters never match.
+- If the command times out or exits abnormally before emitting an assertion,
+  the wrapper script records a reachability marker with the exit code and
+  still exits 0.
+
 ## Local Compose run
 
 From this directory:
