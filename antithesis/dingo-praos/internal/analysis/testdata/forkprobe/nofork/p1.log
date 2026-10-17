@@ -1,0 +1,3 @@
+{"time":"2026-10-15T10:00:01Z","level":"INFO","msg":"chain extended, new tip: f55ff16f66f43360266b95db6f8fec01d76031054306ae4a4b380598f6cfd114 at slot 1","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:02Z","level":"INFO","msg":"chain extended, new tip: 2c3a4249d77070058649dbd822dcaf7957586fce428cfb2ca88b94741eda8b07 at slot 2","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:03Z","level":"INFO","msg":"chain extended, new tip: f46dd28a5499d8efef0b8fb8ee1ec1c5a5e407c9381741d576ba8deb4f59ec3f at slot 3","component":"ledger","source":"chainsync"}
