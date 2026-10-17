@@ -268,6 +268,60 @@ services:
     profiles:
       - db-sync
 
+  dingo:
+    container_name: dingo
+    image: ghcr.io/blinklabs-io/dingo:${DINGO_VERSION:-0.83.0}
+    environment:
+      - CARDANO_NETWORK=${NETWORK:-mainnet}
+      - DINGO_METRICS_BIND_ADDR=0.0.0.0
+      - DINGO_TRACING_ENABLED=true
+      - DINGO_TRACING_SERVICE_NAME=dingo
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    depends_on:
+      - otel-collector
+    volumes:
+      - dingo-data:/data/db
+      - dingo-ipc:/ipc
+    restart: on-failure
+    ports:
+      - ${DINGO_NODE_PORT:-3001}:3001
+      - 127.0.0.1:${DINGO_METRICS_PORT:-12798}:12798
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    profiles:
+      - dingo-otel
+
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:${OTEL_COLLECTOR_VERSION:-0.116.1}
+    command: ["--config=/etc/otelcol/config.yaml"]
+    depends_on:
+      - jaeger
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    restart: on-failure
+    ports:
+      - 127.0.0.1:${OTEL_COLLECTOR_OTLP_GRPC_PORT:-4317}:4317
+      - 127.0.0.1:${OTEL_COLLECTOR_OTLP_HTTP_PORT:-4318}:4318
+    profiles:
+      - dingo-otel
+      - otel
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:${JAEGER_VERSION:-1.65.0}
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: on-failure
+    ports:
+      - 127.0.0.1:${JAEGER_UI_PORT:-16686}:16686
+    profiles:
+      - dingo-otel
+      - otel
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v3.15.0
@@ -283,6 +337,8 @@ services:
     restart: on-failure
     profiles:
       - observability
+      - dingo-otel
+      - otel
 
   grafana:
     container_name: grafana
@@ -301,6 +357,8 @@ services:
     restart: on-failure
     profiles:
       - observability
+      - dingo-otel
+      - otel
 
 secrets:
   postgres_db:
@@ -314,6 +372,8 @@ volumes:
   bluefin-data:
     driver: local
   db-sync-data:
+  dingo-data:
+  dingo-ipc:
   kupo-db:
   node-config:
   node-data:

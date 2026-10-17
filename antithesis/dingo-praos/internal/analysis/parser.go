@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"io"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,20 @@ const (
 	// The TxType field on BlockEvent identifies the tx type (payment,
 	// delegation, governance, plutus).
 	EventTxSubmitted
+
+	// EventMempoolReject indicates a node refused or dropped a transaction.
+	// Reason carries the node's rejection text.
+	EventMempoolReject
+
+	// EventTxRejectedBySubmitter indicates txpump logged a rejection from the
+	// node it submitted to.
+	EventTxRejectedBySubmitter
+)
+
+// Node implementations distinguished by their log format.
+const (
+	ImplDingo       = "dingo"
+	ImplCardanoNode = "cardano-node"
 )
 
 // BlockEvent is the normalised representation of a single log line.
@@ -86,7 +101,23 @@ type BlockEvent struct {
 
 	// TxID is the transaction hash when the source log provides one.
 	TxID string
+
+	// Impl is the node implementation (ImplDingo or ImplCardanoNode) for
+	// node-sourced events, derived from the log format.
+	Impl string
+
+	// User identifies the workload user when txpump logs one.
+	User string
+
+	// Reason is the rejection text for rejection events.
+	Reason string
 }
+
+// dingoTxSubmissionReject matches the tx-submission server's refusal, which
+// embeds the hex transaction hash in the message rather than a field.
+var dingoTxSubmissionReject = regexp.MustCompile(
+	`^failed to add tx ([0-9A-Fa-f]+) to mempool: (.*)$`,
+)
 
 // ParseLogLine attempts to parse a single JSON log line and return a
 // BlockEvent. It returns nil for lines that cannot be parsed or that do not
@@ -133,6 +164,15 @@ func ParseLogLine(line string) *BlockEvent {
 // parseDingoLine handles dingo slog JSON format.
 func parseDingoLine(raw map[string]interface{}) *BlockEvent {
 	rawMsg, _ := raw["msg"].(string)
+	if m := dingoTxSubmissionReject.FindStringSubmatch(rawMsg); m != nil {
+		return &BlockEvent{
+			Type:      EventMempoolReject,
+			Impl:      ImplDingo,
+			Timestamp: extractTimestamp(raw),
+			TxID:      m[1],
+			Reason:    m[2],
+		}
+	}
 	msg := strings.ToLower(rawMsg)
 
 	var evType EventType
@@ -156,11 +196,17 @@ func parseDingoLine(raw map[string]interface{}) *BlockEvent {
 		evType = EventMempoolAdd
 	case msg == "confirmed transaction" && componentIs(raw, "mempool"):
 		evType = EventTxConfirmed
+	case strings.HasPrefix(msg, "transaction failed re-validation") &&
+		componentIs(raw, "mempool"):
+		evType = EventMempoolReject
 	default:
 		return nil
 	}
 
-	ev := &BlockEvent{Type: evType}
+	ev := &BlockEvent{Type: evType, Impl: ImplDingo}
+	if evType == EventMempoolReject {
+		ev.Reason = stringValue(raw["error"])
+	}
 	ev.Timestamp = extractTimestamp(raw)
 	ev.Slot = extractSlot(raw)
 	// For "chain extended" messages the slot may be embedded in the message
@@ -192,21 +238,34 @@ func parseCardanoNodeLine(raw map[string]interface{}) *BlockEvent {
 		evType = EventBlockReceived
 	case strings.Contains(ns, "Mempool") && strings.Contains(ns, "AddedTx"):
 		evType = EventMempoolAdd
+	case strings.Contains(ns, "Mempool") && strings.Contains(ns, "RejectedTx"):
+		evType = EventMempoolReject
 	case strings.Contains(ns, "Mempool") && strings.Contains(ns, "RemoveTx"):
 		evType = EventTxConfirmed
 	default:
 		return nil
 	}
 
-	ev := &BlockEvent{Type: evType}
+	ev := &BlockEvent{Type: evType, Impl: ImplCardanoNode}
 	ev.Timestamp = extractTimestamp(raw)
 	ev.Slot = extractSlotCardano(raw)
 	ev.BlockHash = extractHash(raw)
 	ev.TxID = extractTxID(raw)
 	if data, ok := raw["data"].(map[string]interface{}); ok {
-		if ev.Type == EventTxConfirmed && ev.TxID == "" {
+		if ev.Type == EventMempoolReject {
+			if reason, err := json.Marshal(data["err"]); err == nil &&
+				data["err"] != nil {
+				ev.Reason = string(reason)
+			}
+		}
+		if (ev.Type == EventTxConfirmed ||
+			ev.Type == EventMempoolAdd ||
+			ev.Type == EventMempoolReject) && ev.TxID == "" {
 			if tx, ok := data["tx"].(map[string]interface{}); ok {
 				ev.TxID = stringValue(tx["txid"])
+				if ev.TxID == "" {
+					ev.TxID = stringValue(tx["txId"])
+				}
 			}
 		}
 		if val, ok := data["val"].(map[string]interface{}); ok {
@@ -424,8 +483,14 @@ func componentIs(raw map[string]interface{}, expected string) bool {
 // Format: {"ts":"...","tx_id":"...","tx_type":"payment","status":"submitted",...}
 func parseTxpumpLine(raw map[string]interface{}) *BlockEvent {
 	status, _ := raw["status"].(string)
-	if status != "submitted" {
-		return nil // only count successful submissions
+	var evType EventType
+	switch status {
+	case "submitted":
+		evType = EventTxSubmitted
+	case "rejected":
+		evType = EventTxRejectedBySubmitter
+	default:
+		return nil // ready and transport-error entries are not outcomes
 	}
 	txType, _ := raw["tx_type"].(string)
 	if txType == "" {
@@ -433,9 +498,11 @@ func parseTxpumpLine(raw map[string]interface{}) *BlockEvent {
 	}
 
 	ev := &BlockEvent{
-		Type:   EventTxSubmitted,
+		Type:   evType,
 		TxType: txType,
 		TxID:   stringValue(raw["tx_id"]),
+		User:   stringValue(raw["user"]),
+		Reason: stringValue(raw["error"]),
 	}
 	if ts, ok := raw["ts"].(string); ok {
 		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {

@@ -1,0 +1,2 @@
+{"ts":"2026-01-01T00:00:01Z","tx_id":"dd04","tx_type":"vesting","status":"submitted"}
+{"ts":"2026-01-01T00:00:02Z","tx_id":"ee05","tx_type":"vesting","status":"rejected","error":"node n: SubmitTx eraID=6: outside validity interval: start 5, slot 9"}

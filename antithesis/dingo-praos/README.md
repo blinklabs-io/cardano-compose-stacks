@@ -60,6 +60,14 @@ The local compose file uses the Dingo `main-antithesis` image and the
 `cardano-txpump:main` image. The Moog definition is under
 `testnets/dingo-praos/` and adds fault handling and log analysis.
 
+The analyzer also reports cross-implementation divergence: a transaction one
+implementation (Dingo or cardano-node, told apart by log format) accepted into
+its mempool while the other rejected it. Rejections caused by ledger state at
+submission time (spent input, expired validity interval) are classified as
+expected and logged separately. Submissions and rejections are counted per
+transaction type, and per user when txpump logs a `user` field. It reads
+`txpump.log` from any number of subdirectories of the log volume.
+
 The published Antithesis helper images support `linux/amd64` and `linux/arm64`.
 Docker Compose selects the host architecture when it pulls multi-architecture
 images, so the local harness can run natively on ARM64 once the Dingo and
