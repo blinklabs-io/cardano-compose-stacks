@@ -238,6 +238,13 @@ func (p *ForkProbe) MaxForkDepth() int { return p.maxDepth }
 
 func (p *ForkProbe) currentDepth() int { return p.curDepth }
 
+// NodeRestarted ends a node's shutdown window. A log rewritten from its start
+// means the process restarted, so a fatal entry in the new log is not excused
+// by a stop recorded in the old one.
+func (p *ForkProbe) NodeRestarted(nodeID string) {
+	p.shuttingDown[nodeID] = false
+}
+
 // Observe feeds one log line from a node's log into the probe.
 func (p *ForkProbe) Observe(nodeID, line string) {
 	line = strings.TrimSpace(line)

@@ -311,6 +311,9 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 		!equalHash(state.consumed, readConsumed(f, state.offset))) {
 		a.logger.Info("log file truncated, resetting offset", "path", path)
 		state.offset = 0
+		if role == "node" {
+			a.forkProbe.NodeRestarted(state.nodeID)
+		}
 	}
 
 	if state.offset > 0 {
