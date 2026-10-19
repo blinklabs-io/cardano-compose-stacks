@@ -1,0 +1,3 @@
+{"app":[],"at":"2026-10-15T10:00:01Z","data":{"chainLengthDelta":1,"kind":"TraceAddBlockEvent.AddedToCurrentChain","newtip":"f55ff16f@1"},"env":"11.0.1:1","host":"p2","loc":null,"msg":"","ns":["cardano.node.ChainDB"],"pid":"7","sev":"Notice","thread":"21"}
+{"app":[],"at":"2026-10-15T10:00:02Z","data":{"chainLengthDelta":1,"kind":"TraceAddBlockEvent.AddedToCurrentChain","newtip":"2c3a4249@2"},"env":"11.0.1:1","host":"p2","loc":null,"msg":"","ns":["cardano.node.ChainDB"],"pid":"7","sev":"Notice","thread":"21"}
+{"app":[],"at":"2026-10-15T10:00:03Z","data":{"chainLengthDelta":1,"kind":"TraceAddBlockEvent.AddedToCurrentChain","newtip":"f46dd28a@3"},"env":"11.0.1:1","host":"p2","loc":null,"msg":"","ns":["cardano.node.ChainDB"],"pid":"7","sev":"Notice","thread":"21"}

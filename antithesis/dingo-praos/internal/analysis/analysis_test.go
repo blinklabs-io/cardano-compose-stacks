@@ -240,3 +240,25 @@ func TestLogRole_RecognizesRotationsAndRejectsUnrelatedFiles(t *testing.T) {
 	_, _, ok = logRole("/logs/application.log")
 	require.False(t, ok)
 }
+
+// A restarted node's rewritten log starts a new process, so a fatal entry in
+// it is not excused by the shutdown the previous log ended with.
+func TestAnalyzerReadNewLines_RewrittenLogEndsTheShutdownWindow(t *testing.T) {
+	logDir := t.TempDir()
+	active := filepath.Join(logDir, "p1.log")
+	stop := `{"level":"INFO","msg":"signal received, starting shutdown"}` + "\n"
+	fatal := `{"level":"FATAL","msg":"x"}` + "\n"
+	require.NoError(t, os.WriteFile(active, []byte(stop), 0o644))
+	analyzer := NewAnalyzer(
+		&Config{LogDir: logDir},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	analyzer.readNewLines()
+	require.Zero(t, analyzer.forkProbe.violations)
+
+	require.NoError(t, os.WriteFile(active, []byte(fatal+fatal), 0o644))
+	analyzer.readNewLines()
+
+	require.Equal(t, 2, analyzer.forkProbe.violations)
+	require.Zero(t, analyzer.forkProbe.exempted)
+}
