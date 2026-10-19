@@ -1,0 +1,7 @@
+{"time":"2026-10-15T10:00:01Z","level":"INFO","msg":"chain extended, new tip: f55ff16f66f43360266b95db6f8fec01d76031054306ae4a4b380598f6cfd114 at slot 1","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:02Z","level":"INFO","msg":"chain extended, new tip: 2c3a4249d77070058649dbd822dcaf7957586fce428cfb2ca88b94741eda8b07 at slot 2","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:03Z","level":"INFO","msg":"chain extended, new tip: f46dd28a5499d8efef0b8fb8ee1ec1c5a5e407c9381741d576ba8deb4f59ec3f at slot 3","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:10Z","level":"INFO","msg":"chain rolled back, new tip: f55ff16f66f43360266b95db6f8fec01d76031054306ae4a4b380598f6cfd114 at slot 1","component":"ledger"}
+{"time":"2026-10-15T10:00:11Z","level":"INFO","msg":"chain extended, new tip: 4814d92093ac8a0f4a2163ab87dee509ba306a58f5888be0edcb2fcd0712028b at slot 2","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:12Z","level":"INFO","msg":"chain extended, new tip: 76a8277347f52530e1cf979175a178980b3a180d176165c985d85f7e142f1eed at slot 3","component":"ledger","source":"chainsync"}
+{"time":"2026-10-15T10:00:13Z","level":"INFO","msg":"chain extended, new tip: 486bacc5c2d8a71a73d51bf8e522deaa264ec2628dca2955da1e9b8e00f21943 at slot 4","component":"ledger","source":"chainsync"}

@@ -1,0 +1,2 @@
+{"app":[],"at":"2026-10-15T10:00:01Z","data":{"chainLengthDelta":1,"kind":"TraceAddBlockEvent.AddedToCurrentChain","newtip":"f55ff16f@1"},"env":"11.0.1:1","host":"p2","loc":null,"msg":"","ns":["cardano.node.ChainDB"],"pid":"7","sev":"Notice","thread":"21"}
+{"app":[],"at":"2026-10-15T10:00:04Z","data":{"kind":"ServerError","reason":"AsyncCancelled"},"host":"p2","msg":"","ns":["cardano.node.ErrorPolicy"],"sev":"Critical","thread":"9"}

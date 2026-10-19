@@ -70,6 +70,7 @@ type Analyzer struct {
 	ingestion           ingestionStats
 	observabilityWarned bool
 	walkWarnings        map[string]struct{}
+	forkProbe           *ForkProbe
 	// reportedDivergences keeps each divergence to one log line: the
 	// snapshot is recomputed on every periodic check.
 	reportedDivergences map[string]struct{}
@@ -89,6 +90,10 @@ func NewAnalyzer(cfg *Config, logger *slog.Logger) *Analyzer {
 			nodeReadable: make(map[string]struct{}),
 		},
 		walkWarnings: make(map[string]struct{}),
+		forkProbe: NewForkProbe(
+			cfg.MaxForkDepth,
+			assertionSink{always: Always, sometimes: Sometimes},
+		),
 	}
 }
 
@@ -143,6 +148,7 @@ func (a *Analyzer) check() {
 		a.reportLivenessAssertions(&snap)
 	}
 	a.reportReachable(&snap)
+	a.forkProbe.Report()
 	a.reportDivergence(&snap)
 }
 
@@ -305,6 +311,9 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 		!equalHash(state.consumed, readConsumed(f, state.offset))) {
 		a.logger.Info("log file truncated, resetting offset", "path", path)
 		state.offset = 0
+		if role == "node" {
+			a.forkProbe.NodeRestarted(state.nodeID)
+		}
 	}
 
 	if state.offset > 0 {
@@ -337,6 +346,9 @@ func (a *Analyzer) readFile(path, role, nodeID string) bool {
 			}
 			bytesRead += int64(len(line))
 			line = strings.TrimRight(line, "\n\r")
+			if role == "node" {
+				a.forkProbe.Observe(state.nodeID, line)
+			}
 			ev := ParseLogLine(line)
 			if ev != nil {
 				ev.NodeID = state.nodeID
