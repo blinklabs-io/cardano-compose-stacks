@@ -61,6 +61,11 @@ type Config struct {
 	// Default: 50
 	MinBlocksSample int
 
+	// ConvergenceWindow is the largest slot distance between the longest
+	// chain tip and any other node's tip for the nodes to count as converged
+	// by the post-fault check. Default: 10
+	ConvergenceWindow uint64
+
 	// GenesisFile is the path to the testnet.yaml genesis configuration.
 	// When set, EpochLength, Pools, and MaxForkDepth are read from the
 	// genesis config (overriding env defaults). Default: empty (use env defaults).
@@ -75,14 +80,15 @@ type Config struct {
 // fully-populated Config struct.
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
-		LogDir:          envStringA("ANALYSIS_LOG_DIR", "/logs"),
-		InitialWait:     30 * time.Second,
-		CheckInterval:   5 * time.Second,
-		MaxForkDepth:    40,
-		Pools:           5,
-		MinBlocksSample: 50,
-		GenesisFile:     envStringA("ANALYSIS_GENESIS_FILE", ""),
-		EpochLength:     500,
+		LogDir:            envStringA("ANALYSIS_LOG_DIR", "/logs"),
+		InitialWait:       30 * time.Second,
+		CheckInterval:     5 * time.Second,
+		MaxForkDepth:      40,
+		Pools:             5,
+		MinBlocksSample:   50,
+		GenesisFile:       envStringA("ANALYSIS_GENESIS_FILE", ""),
+		ConvergenceWindow: 10,
+		EpochLength:       500,
 	}
 
 	if v := os.Getenv("ANALYSIS_INITIAL_WAIT"); v != "" {
@@ -136,6 +142,17 @@ func LoadConfig() (*Config, error) {
 			)
 		}
 		cfg.MinBlocksSample = n
+	}
+
+	if v := os.Getenv("ANALYSIS_CONVERGENCE_WINDOW"); v != "" {
+		n, err := strconv.ParseUint(v, 10, 64)
+		if err != nil || n < 1 {
+			return nil, fmt.Errorf(
+				"ANALYSIS_CONVERGENCE_WINDOW: must be a positive integer, got %q",
+				v,
+			)
+		}
+		cfg.ConvergenceWindow = n
 	}
 
 	// If a genesis file is provided, read network params from it.
