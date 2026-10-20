@@ -307,3 +307,20 @@ func TestMetrics_SnapshotIsIndependent(t *testing.T) {
 	require.Equal(t, 99, snap.BlocksByNode["p1"])
 	require.Equal(t, 2, m.Snapshot().BlocksByNode["p1"])
 }
+
+func TestMetrics_NoEquivocation_AbbreviatedAndFullHashOfSameBlock(t *testing.T) {
+	full := dingoTipHash
+	m := NewMetrics()
+	m.RecordEvent(&BlockEvent{
+		Type: EventForgedBlock, NodeID: "p1", Slot: 10, BlockHash: full,
+	})
+	m.RecordEvent(&BlockEvent{
+		Type: EventForgedBlock, NodeID: "p1", Slot: 10, BlockHash: full[:8],
+	})
+	require.Empty(t, m.Snapshot().Equivocations)
+
+	m.RecordEvent(&BlockEvent{
+		Type: EventForgedBlock, NodeID: "p1", Slot: 10, BlockHash: "ffffffff",
+	})
+	require.Len(t, m.Snapshot().Equivocations, 1)
+}
