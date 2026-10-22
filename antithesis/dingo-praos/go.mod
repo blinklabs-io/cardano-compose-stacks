@@ -1,6 +1,6 @@
 module github.com/blinklabs-io/cardano-compose-stacks/antithesis/dingo-praos
 
-go 1.26.5
+go 1.26.10
 
 toolchain go1.26.7
 
