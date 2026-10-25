@@ -270,7 +270,7 @@ services:
 
   dingo:
     container_name: dingo
-    image: ghcr.io/blinklabs-io/dingo:${DINGO_VERSION:-0.85.0}
+    image: ghcr.io/blinklabs-io/dingo:${DINGO_VERSION:-0.88.0}
     environment:
       - CARDANO_NETWORK=${NETWORK:-mainnet}
       - DINGO_METRICS_BIND_ADDR=0.0.0.0
