@@ -1,7 +1,8 @@
 # Antithesis testnet specification for Dingo.
 #
 # 5-pool mixed network: p1 (dingo) + p2-p5 (cardano-node).
-# Fast 500-slot epochs with k=40 for rapid epoch boundary testing.
+# Short 900-slot epochs with k=40 and f=0.2 (the CF testnets' f), so a
+# 60-minute run crosses several epoch boundaries.
 #
 # Format: 6 YAML documents
 #   1. Required testnet parameters
@@ -27,12 +28,14 @@ protocolConsts:
   k: 40
 
 --- # Shelley Genesis Override
-# 1s slots, ~8 min epochs
-# nonceStabilityWindow = 4k/f = 4*40/0.4 = 400 < 500 ✓
-# blockfetchStabilityWindow = 3k/f = 3*40/0.4 = 300 < 500 ✓
-epochLength: 500
+# 1s slots, ~15 min epochs
+# nonceStabilityWindow = 4k/f = 4*40/0.2 = 800 < 900 ✓
+# blockfetchStabilityWindow = 3k/f = 3*40/0.2 = 600 < 900 ✓
+# A 2-of-5-pool minority forges 0.08 blocks/s, so a partition must last
+# ~500s before the fork-depth assertion (depth < k) can trip.
+epochLength: 900
 slotLength: 1
-activeSlotsCoeff: 0.4
+activeSlotsCoeff: 0.2
 securityParam: 40
 maxLovelaceSupply: 45000000000000000
 protocolParams:

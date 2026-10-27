@@ -116,7 +116,7 @@ func TestLoadActualTestnetYAML(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 5, cfg.PoolCount)
 	assert.Equal(t, uint32(42), cfg.NetworkMagic)
-	assert.Equal(t, uint64(500), cfg.EpochLength)
+	assert.Equal(t, uint64(900), cfg.EpochLength)
 	assert.Equal(t, uint64(40), cfg.SecurityParam)
 }
 
