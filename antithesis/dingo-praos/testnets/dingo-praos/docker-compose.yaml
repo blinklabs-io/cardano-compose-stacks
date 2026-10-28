@@ -228,6 +228,7 @@ services:
       # Plutus workloads, which are not partitioned by key.
       TXPUMP_USERS: "0-2"
       TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus,escrow,vesting"
+      TXPUMP_SCRIPT_APPS_FROM_EPOCH: "1"
       # No readiness deadline: faults can keep p1 down for minutes before the
       # first submission, and an exited txpump never comes back.
       TXPUMP_STARTUP_TIMEOUT: "0"

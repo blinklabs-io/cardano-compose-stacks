@@ -37,6 +37,7 @@ validate_compose() {
   grep -Eq 'TXPUMP_TYPES:[[:space:]]*"?payment,peer_payment,delegation,governance,plutus,escrow,vesting"?$' "$rendered"
   grep -Eq 'TXPUMP_TYPES:[[:space:]]*"?payment,peer_payment,delegation,governance"?$' "$rendered"
   grep -Eq 'TXPUMP_USERS:[[:space:]]*"?0-2"?$' "$rendered"
+  grep -Eq 'TXPUMP_SCRIPT_APPS_FROM_EPOCH:[[:space:]]*"?1"?$' "$rendered"
   grep -Eq 'TXPUMP_USERS:[[:space:]]*"?3-4"?$' "$rendered"
   grep -Eq 'TXPUMP_LOG_DIR:[[:space:]]*"?/logs/txpump-cn"?' "$rendered"
   if [[ "$moog" == "true" ]]; then

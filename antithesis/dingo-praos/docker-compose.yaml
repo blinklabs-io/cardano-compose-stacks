@@ -224,6 +224,7 @@ services:
       # Plutus workloads, which are not partitioned by key.
       TXPUMP_USERS: "0-2"
       TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus,escrow,vesting"
+      TXPUMP_SCRIPT_APPS_FROM_EPOCH: "1"
       TXPUMP_STARTUP_TIMEOUT: "0"
       TXPUMP_LOG_DIR: "/logs"
       TXPUMP_GENESIS_FILE: "/configs/configs/shelley-genesis.json"
