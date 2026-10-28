@@ -42,6 +42,7 @@ validate_compose() {
   grep -Eq 'TXPUMP_LOG_DIR:[[:space:]]*"?/logs/txpump-cn"?' "$rendered"
   if [[ "$moog" == "true" ]]; then
     grep -Eq 'TXPUMP_NODE_ADDR:[[:space:]]*"?p1\.example:3002"?' "$rendered"
+    grep -Eq 'ANALYSIS_EXPECTED_APPS:[[:space:]]*"?escrow,vesting"?$' "$rendered"
     grep -Eq 'TXPUMP_FALLBACK_ADDR:[[:space:]]*"?p2\.example:3002"?' "$rendered"
     [[ "$(grep -Ec 'TXPUMP_NODE_ADDR:[[:space:]]*"?p2\.example:3002"?' "$rendered")" -eq 1 ]]
     grep -Eq 'TXPUMP_FALLBACK_ADDR:[[:space:]]*"?p1\.example:3002"?' "$rendered"
