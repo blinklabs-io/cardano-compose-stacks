@@ -18,6 +18,22 @@ The Dingo repository publishes its instrumented image. This repository builds
 the configurator and analyzer in `.github/workflows/antithesis.yml`; the
 separate `cardano-txpump` repository publishes the workload image.
 
+## Script app checks
+
+The analyzer reads each txpump log entry's `tx_type`; any type that is not a
+core workload (`payment`, `peer_payment`, `delegation`, `governance`,
+`plutus`) is a script app. Two checks use it:
+
+- `script-apps-not-rejected-for-script-failure` is an Always assertion. txpump
+  verifies every app transaction offline before it submits, so a node mempool
+  or txpump itself refusing one for a script failure means a node disagrees
+  with the reference evaluator. Rejections for spent inputs or expired
+  validity intervals never count.
+- `ANALYSIS_EXPECTED_APPS` lists the apps the run enables, for example
+  `escrow,vesting`. Each one gets `app-<name>-submitted` and
+  `app-<name>-confirmed` Sometimes assertions, which pass once txpump submits
+  a transaction for the app and a node later confirms one in a block.
+
 ## Post-fault convergence check
 
 The analysis image carries `eventually_converged.sh` under
