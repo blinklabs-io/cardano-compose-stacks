@@ -89,3 +89,16 @@ func TestLoadConfigConvergenceWindow(t *testing.T) {
 		require.Error(t, err, bad)
 	}
 }
+
+func TestLoadConfigExpectedApps(t *testing.T) {
+	t.Setenv("ANALYSIS_GENESIS_FILE", "")
+	t.Setenv("ANALYSIS_EXPECTED_APPS", "")
+	cfg, err := LoadConfig()
+	require.NoError(t, err)
+	require.Empty(t, cfg.ExpectedApps)
+
+	t.Setenv("ANALYSIS_EXPECTED_APPS", " escrow, vesting ,,")
+	cfg, err = LoadConfig()
+	require.NoError(t, err)
+	require.Equal(t, []string{"escrow", "vesting"}, cfg.ExpectedApps)
+}

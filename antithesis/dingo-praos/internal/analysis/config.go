@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/blinklabs-io/cardano-compose-stacks/antithesis/dingo-praos/internal/genesis"
@@ -65,6 +66,11 @@ type Config struct {
 	// chain tip and any other node's tip for the nodes to count as converged
 	// by the post-fault check. Default: 10
 	ConvergenceWindow uint64
+
+	// ExpectedApps names the txpump script apps the run enables, such as
+	// escrow and vesting. Each one is expected to submit and to get a
+	// transaction confirmed at least once. Default: none.
+	ExpectedApps []string
 
 	// GenesisFile is the path to the testnet.yaml genesis configuration.
 	// When set, EpochLength, Pools, and MaxForkDepth are read from the
@@ -153,6 +159,14 @@ func LoadConfig() (*Config, error) {
 			)
 		}
 		cfg.ConvergenceWindow = n
+	}
+
+	if v := os.Getenv("ANALYSIS_EXPECTED_APPS"); v != "" {
+		for _, app := range strings.Split(v, ",") {
+			if app = strings.TrimSpace(app); app != "" {
+				cfg.ExpectedApps = append(cfg.ExpectedApps, app)
+			}
+		}
 	}
 
 	// If a genesis file is provided, read network params from it.

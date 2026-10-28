@@ -104,6 +104,17 @@ type Metrics struct {
 
 	// verdicts holds each implementation's mempool decision per tx ID.
 	verdicts map[string]*txVerdict
+
+	// appByTx maps a submitted script-app transaction to its app, and
+	// confirmedByApp counts those a node confirmed. appConfirmedTx makes the
+	// count once per transaction whichever log arrives first.
+	appByTx        map[string]string
+	appConfirmedTx map[string]bool
+	confirmedByApp map[string]int
+
+	// submitterScriptRejections are txpump-side rejections of app
+	// transactions that name a script failure.
+	submitterScriptRejections []ScriptRejection
 }
 
 // NewMetrics allocates and returns an empty Metrics.
@@ -122,6 +133,9 @@ func NewMetrics() *Metrics {
 		submittedByUser: make(map[string]int),
 		rejectedByUser:  make(map[string]int),
 		verdicts:        make(map[string]*txVerdict),
+		appByTx:         make(map[string]string),
+		appConfirmedTx:  make(map[string]bool),
+		confirmedByApp:  make(map[string]int),
 	}
 }
 
@@ -148,6 +162,7 @@ func (m *Metrics) RecordEvent(ev *BlockEvent) {
 		m.recordNodeVerdict(ev)
 	case EventTxRejectedBySubmitter:
 		m.recordSubmitterOutcome(ev, false)
+		m.recordAppRejection(ev)
 	case EventTxConfirmed:
 		m.MempoolConfirmedCount++
 		if ev.TxID != "" {
@@ -157,6 +172,7 @@ func (m *Metrics) RecordEvent(ev *BlockEvent) {
 			m.confirmedTxIDs[ev.TxID] == 1 {
 			m.ConfirmedSubmittedTxCount++
 		}
+		m.recordAppConfirmed(ev.TxID)
 	case EventTxSubmitted:
 		m.recordTxSubmitted(ev)
 	case EventUnknown, EventBlockReceived:
@@ -205,6 +221,7 @@ func (m *Metrics) recordForgedBlock(ev *BlockEvent) {
 // recordTxSubmitted handles an EventTxSubmitted under the held lock.
 func (m *Metrics) recordTxSubmitted(ev *BlockEvent) {
 	m.recordSubmitterOutcome(ev, true)
+	m.recordAppSubmitted(ev)
 	if ev.TxID != "" {
 		m.SubmittedTxIDs[ev.TxID]++
 		if m.SubmittedTxIDs[ev.TxID] > 1 {
@@ -273,6 +290,8 @@ type MetricsSnapshot struct {
 	RejectedByUser            map[string]int
 	Divergences               []Divergence
 	ExpectedRejections        []ExpectedRejection
+	ConfirmedByApp            map[string]int
+	ScriptRejections          []ScriptRejection
 }
 
 // Snapshot returns a point-in-time copy of the metrics. The returned value
@@ -306,6 +325,8 @@ func (m *Metrics) Snapshot() MetricsSnapshot {
 	snap.SubmittedByUser = copyCounts(m.submittedByUser)
 	snap.RejectedByUser = copyCounts(m.rejectedByUser)
 	snap.Divergences, snap.ExpectedRejections = m.classifyVerdicts()
+	snap.ConfirmedByApp = copyCounts(m.confirmedByApp)
+	snap.ScriptRejections = m.classifyScriptRejections()
 	for k, v := range m.BlocksByNode {
 		snap.BlocksByNode[k] = v
 	}
