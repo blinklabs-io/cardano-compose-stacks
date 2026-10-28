@@ -34,7 +34,10 @@ validate_compose() {
 
   grep -Eq 'CARDANO_PRIVATE_BIND_ADDR:[[:space:]]*"?0\.0\.0\.0"?' "$rendered"
   grep -Eq 'TXPUMP_STARTUP_TIMEOUT:[[:space:]]*"?0"?' "$rendered"
-  [[ "$(grep -Ec 'TXPUMP_TYPES:[[:space:]]*"?payment,peer_payment,delegation,governance,plutus"?$' "$rendered")" -eq 2 ]]
+  grep -Eq 'TXPUMP_TYPES:[[:space:]]*"?payment,peer_payment,delegation,governance,plutus,escrow,vesting"?$' "$rendered"
+  grep -Eq 'TXPUMP_TYPES:[[:space:]]*"?payment,peer_payment,delegation,governance"?$' "$rendered"
+  grep -Eq 'TXPUMP_USERS:[[:space:]]*"?0-2"?$' "$rendered"
+  grep -Eq 'TXPUMP_USERS:[[:space:]]*"?3-4"?$' "$rendered"
   grep -Eq 'TXPUMP_LOG_DIR:[[:space:]]*"?/logs/txpump-cn"?' "$rendered"
   if [[ "$moog" == "true" ]]; then
     grep -Eq 'TXPUMP_NODE_ADDR:[[:space:]]*"?p1\.example:3002"?' "$rendered"

@@ -223,10 +223,11 @@ services:
       TXPUMP_TX_COUNT_MAX: "50"
       TXPUMP_COOLDOWN_MIN: "5"
       TXPUMP_COOLDOWN_MAX: "15"
-      # Users are the five genesis signing keys. peer_payment moves ADA between
-      # them. Add ",escrow" here, and TXPUMP_ALONZO_GENESIS_FILE once the
-      # published txpump image includes the escrow app.
-      TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus"
+      # Users are the five genesis signing keys, split between the two pumps so
+      # they never spend the same outputs. This pump owns keys 0-2 and the
+      # Plutus workloads, which are not partitioned by key.
+      TXPUMP_USERS: "0-2"
+      TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus,escrow,vesting"
       # No readiness deadline: faults can keep p1 down for minutes before the
       # first submission, and an exited txpump never comes back.
       TXPUMP_STARTUP_TIMEOUT: "0"
@@ -265,7 +266,8 @@ services:
       TXPUMP_TX_COUNT_MAX: "50"
       TXPUMP_COOLDOWN_MIN: "5"
       TXPUMP_COOLDOWN_MAX: "15"
-      TXPUMP_TYPES: "payment,peer_payment,delegation,governance,plutus"
+      TXPUMP_USERS: "3-4"
+      TXPUMP_TYPES: "payment,peer_payment,delegation,governance"
       TXPUMP_STARTUP_TIMEOUT: "0"
       # The analyzer finds txpump.log in any subdirectory of /logs.
       TXPUMP_LOG_DIR: "/logs/txpump-cn"

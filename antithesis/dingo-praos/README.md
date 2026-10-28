@@ -75,13 +75,13 @@ txpump image manifests include that platform.
 
 Two txpump instances drive traffic: `txpump` submits through Dingo (p1) and
 `txpump-cn` through p2's cardano-node socket (bridged to TCP 3002 under Moog).
-Both run `payment`, `peer_payment`, `delegation`, `governance` and `plutus`;
-each genesis signing key is one user, and `peer_payment` moves ADA between
-them. The `escrow` app is not enabled because the published
-`cardano-txpump:main` image does not include it yet. When it does, append
-`,escrow` to `TXPUMP_TYPES` and set `TXPUMP_ALONZO_GENESIS_FILE` to the
-network's Alonzo genesis in both compose files. The blueprint is embedded in
-the image, so nothing needs mounting.
+Each genesis signing key is one user and `peer_payment` moves ADA between them.
+`TXPUMP_USERS` splits the keys so the pumps never spend the same outputs:
+`txpump` uses keys 0-2 and runs `payment`, `peer_payment`, `delegation`,
+`governance`, `plutus`, `escrow` and `vesting`; `txpump-cn` uses keys 3-4 and
+runs the first four. The Plutus workloads stay on `txpump` because they are
+not partitioned by key. The script apps start in epoch 3, and the blueprints
+are embedded in the image, so nothing needs mounting.
 
 The Moog definition selects `linux/amd64` and uses `pull_policy: never` for
 every service. Antithesis imports the images before boot; its offline test
