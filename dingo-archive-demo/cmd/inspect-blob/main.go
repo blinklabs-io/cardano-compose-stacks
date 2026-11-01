@@ -95,7 +95,6 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "lookup error: %v\n", err)
 		return 2
 	}
-	return 2
 }
 
 // isNotFound treats both "not found" and "history expired" errors as the
