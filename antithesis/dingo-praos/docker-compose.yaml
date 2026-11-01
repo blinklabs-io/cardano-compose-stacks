@@ -209,8 +209,8 @@ services:
     # /logs/txpump.log for the analysis container.
     user: "0:0"
     depends_on:
-      p1:
-        condition: service_healthy
+      configurator:
+        condition: service_completed_successfully
     environment:
       TXPUMP_NODE_ADDR: "/ipc/dingo.socket"
       TXPUMP_FALLBACK_ADDR: "/ipc-backup/node.socket"
@@ -248,8 +248,8 @@ services:
     init: true
     user: "0:0"
     depends_on:
-      p2:
-        condition: service_healthy
+      configurator:
+        condition: service_completed_successfully
     environment:
       TXPUMP_NODE_ADDR: "/ipc/node.socket"
       TXPUMP_FALLBACK_ADDR: "/ipc-backup/dingo.socket"

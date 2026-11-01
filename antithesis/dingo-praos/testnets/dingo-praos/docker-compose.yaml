@@ -213,8 +213,8 @@ services:
     labels:
       com.antithesis.exclude_from_faults: "network,kill,pause,stop"
     depends_on:
-      p1:
-        condition: service_healthy
+      configurator:
+        condition: service_completed_successfully
     environment:
       TXPUMP_NODE_ADDR: "p1.example:3002"
       TXPUMP_FALLBACK_ADDR: "p2.example:3002"
@@ -257,8 +257,8 @@ services:
     labels:
       com.antithesis.exclude_from_faults: "network,kill,pause,stop"
     depends_on:
-      p2:
-        condition: service_healthy
+      configurator:
+        condition: service_completed_successfully
     environment:
       TXPUMP_NODE_ADDR: "p2.example:3002"
       TXPUMP_FALLBACK_ADDR: "p1.example:3002"

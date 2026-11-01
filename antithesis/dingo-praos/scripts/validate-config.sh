@@ -19,11 +19,24 @@ validate_compose() {
   fi
   INTERNAL_NETWORK="${INTERNAL_NETWORK:-false}" \
     docker compose -f "$compose_file" config >"$rendered"
+  local rendered_json="${rendered}.json"
+  INTERNAL_NETWORK="${INTERNAL_NETWORK:-false}" \
+    docker compose -f "$compose_file" config --format json >"$rendered_json"
+
+  # A pump gated on its primary node's health never starts while that node is
+  # down, so its fallback address is never tried. Pumps need only the
+  # configurator's output; txpump itself retries the primary and fallback.
+  jq -e '[.services | to_entries[] | select(.key | startswith("txpump"))]
+    | length == 2 and all(.[];
+      (.value.depends_on | keys) == ["configurator"] and
+      .value.depends_on.configurator.condition ==
+        "service_completed_successfully")' \
+    "$rendered_json" >/dev/null || {
+    echo "txpump services must depend only on configurator completion" >&2
+    return 1
+  }
 
   if [[ "$moog" == "true" ]]; then
-    local rendered_json="${TMP_CONFIG_DIR}/rendered-moog.json"
-    INTERNAL_NETWORK="${INTERNAL_NETWORK:-false}" \
-      docker compose -f "$compose_file" config --format json >"$rendered_json"
     jq -e '.services | to_entries | all(.[];
       .value.platform == "linux/amd64" and .value.pull_policy == "never")' \
       "$rendered_json" >/dev/null || {
