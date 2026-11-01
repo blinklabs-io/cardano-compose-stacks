@@ -99,7 +99,7 @@ func GetTip(ep Endpoint, magic uint32) (Tip, error) {
 	if err != nil {
 		return Tip{}, err
 	}
-	defer oc.Close()
+	defer func() { _ = oc.Close() }()
 	tip, err := oc.ChainSync().Client.GetCurrentTip()
 	if err != nil {
 		return Tip{}, fmt.Errorf("tip from %s: %w", ep.Name, err)
@@ -209,7 +209,7 @@ func FindBlockAtOrAfterSlot(
 	if err != nil {
 		return pcommon.Point{}, fmt.Errorf("dial %s: %w", ep.Name, err)
 	}
-	defer oc.Close()
+	defer func() { _ = oc.Close() }()
 
 	// Origin point tells the peer to start streaming from genesis on the
 	// first roll-forward.
@@ -288,7 +288,7 @@ func FetchBlock(
 	if err != nil {
 		return nil, err
 	}
-	defer oc.Close()
+	defer func() { _ = oc.Close() }()
 
 	// Single-point fetch: start == end is inclusive on both ends.
 	if err := oc.BlockFetch().Client.GetBlockRange(point, point); err != nil {
