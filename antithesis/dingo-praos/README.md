@@ -73,6 +73,16 @@ Docker Compose selects the host architecture when it pulls multi-architecture
 images, so the local harness can run natively on ARM64 once the Dingo and
 txpump image manifests include that platform.
 
+Two txpump instances drive traffic: `txpump` submits through Dingo (p1) and
+`txpump-cn` through p2's cardano-node socket (bridged to TCP 3002 under Moog).
+Each genesis signing key is one user and `peer_payment` moves ADA between them.
+`TXPUMP_USERS` splits the keys so the pumps never spend the same outputs:
+`txpump` uses keys 0-2 and runs `payment`, `peer_payment`, `delegation`,
+`governance`, `plutus`, `escrow` and `vesting`; `txpump-cn` uses keys 3-4 and
+runs the first four. The Plutus workloads stay on `txpump` because they are
+not partitioned by key. Script apps start in epoch 1 (`TXPUMP_SCRIPT_APPS_FROM_EPOCH`, available once the published image includes it), and the blueprints
+are embedded in the image, so nothing needs mounting.
+
 The Moog definition selects `linux/amd64` and uses `pull_policy: never` for
 every service. Antithesis imports the images before boot; its offline test
 environment must use those images without contacting the registry.
