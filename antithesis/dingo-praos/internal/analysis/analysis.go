@@ -74,6 +74,9 @@ type Analyzer struct {
 	// reportedDivergences keeps each divergence to one log line: the
 	// snapshot is recomputed on every periodic check.
 	reportedDivergences map[string]struct{}
+
+	// reportedScriptRejections does the same for script-failure rejections.
+	reportedScriptRejections map[string]struct{}
 }
 
 // NewAnalyzer creates an Analyzer with the given config and a fresh Metrics.
@@ -150,6 +153,7 @@ func (a *Analyzer) check() {
 	a.reportReachable(&snap)
 	a.forkProbe.Report()
 	a.reportDivergence(&snap)
+	a.reportApps(&snap)
 }
 
 func (a *Analyzer) reportObservability(snap MetricsSnapshot) {
