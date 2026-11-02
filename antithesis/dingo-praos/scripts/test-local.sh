@@ -72,6 +72,7 @@ echo "  p3 (cardano-node): localhost:${P3_PORT:-3012} (3001)"
 echo "  p4 (cardano-node): localhost:${P4_PORT:-3013} (3001)"
 echo "  p5 (cardano-node): localhost:${P5_PORT:-3014} (3001)"
 echo "  txpump:            172.21.0.20"
+echo "  txpump-cn:         172.21.0.21"
 echo ""
 echo "Press Ctrl+C to stop"
 
