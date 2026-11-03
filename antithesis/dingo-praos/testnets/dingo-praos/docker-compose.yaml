@@ -102,8 +102,8 @@ services:
   # p1 — Dingo instrumented block producer (pool 1)
   # --------------------------------------------------------------------------
   p1:
-    # Source: blinklabs-io/dingo@323d120551e8254f2acbc15f97735c6d628eedfd
-    image: ghcr.io/blinklabs-io/dingo@sha256:f094d18a58c7d52a9045e625696841ed311e842e6e10845bcbeb8e54c2be176b
+    # Source: blinklabs-io/dingo@329760079e834064e760cba803a415a505c84542
+    image: ghcr.io/blinklabs-io/dingo@sha256:119c72077468635d6ccd03ce6cf68b3b8bf4beb8b2bf5f5f13500e0bd53d7c09
     platform: linux/amd64
     pull_policy: never
     init: true
