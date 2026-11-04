@@ -466,6 +466,7 @@ func (a *Analyzer) reportSafetyAssertions(snap *MetricsSnapshot) {
 					"max_tip":        maxTip,
 					"lag":            lag,
 					"max_fork_depth": a.cfg.MaxForkDepth,
+					"lagging_nodes":  laggingNodes(snap.ChainTipByNode),
 				},
 			)
 			Sometimes(
@@ -483,6 +484,8 @@ func (a *Analyzer) reportSafetyAssertions(snap *MetricsSnapshot) {
 				"max_tip", maxTip,
 				"lag", lag,
 				"max_fork_depth", a.cfg.MaxForkDepth,
+				"lagging_nodes", laggingNodes(snap.ChainTipByNode),
+				"tip_by_node", snap.ChainTipByNode,
 			)
 		}
 	}
@@ -709,6 +712,23 @@ func chainTipRange(tips map[string]uint64) (min, max uint64, ok bool) {
 		first = false
 	}
 	return min, max, !first
+}
+
+// laggingNodes returns the nodes at the lowest tip, in name order. It returns
+// nil when every node agrees on the tip.
+func laggingNodes(tips map[string]uint64) []string {
+	minTip, maxTip, ok := chainTipRange(tips)
+	if !ok || minTip == maxTip {
+		return nil
+	}
+	var nodes []string
+	for node, tip := range tips {
+		if tip == minTip {
+			nodes = append(nodes, node)
+		}
+	}
+	sort.Strings(nodes)
+	return nodes
 }
 
 // globalMaxSlot returns the largest slot across all nodes.

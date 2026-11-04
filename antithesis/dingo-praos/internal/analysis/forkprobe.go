@@ -125,23 +125,42 @@ func (t *chainTree) setTip(node string, tip chainPoint) {
 	t.tips[node] = tip
 }
 
+// forkDepth is the outcome of one comparison of every node's tip with the
+// longest chain.
+type forkDepth struct {
+	max       int
+	matched   int
+	unmatched int
+	// leader holds the longest chain. deepest is the node that sits max
+	// blocks off it, empty when every node is on the leader's chain.
+	leader  string
+	deepest string
+	// unmatchedNodes are the nodes whose ancestry never reaches the leader's
+	// chain, in name order.
+	unmatchedNodes []string
+}
+
 // depth returns the cluster fork depth: the largest number of blocks any
 // node would have to roll back to reach the longest chain. Only tips of
 // nodes other than the leader are compared; matched counts those whose
 // ancestry reaches the leader's chain within walkCap blocks and unmatched
 // those that do not, which are unverifiable rather than safe.
-func (t *chainTree) depth(walkCap int) (maxDepth, matched, unmatched int) {
+func (t *chainTree) depth(walkCap int) forkDepth {
+	var res forkDepth
 	if len(t.tips) < 2 {
-		return 0, 0, 0
+		return res
 	}
+	nodes := make([]string, 0, len(t.tips))
+	for node := range t.tips {
+		nodes = append(nodes, node)
+	}
+	sort.Strings(nodes)
 	var leader chainPoint
-	leaderNode := ""
-	for node, tip := range t.tips {
-		if leaderNode == "" || t.height[tip.hash] > t.height[leader.hash] ||
-			(t.height[tip.hash] == t.height[leader.hash] &&
-				(tip.hash < leader.hash ||
-					(tip.hash == leader.hash && node < leaderNode))) {
-			leader, leaderNode = tip, node
+	for _, node := range nodes {
+		tip := t.tips[node]
+		if res.leader == "" || t.height[tip.hash] > t.height[leader.hash] ||
+			(t.height[tip.hash] == t.height[leader.hash] && tip.hash < leader.hash) {
+			leader, res.leader = tip, node
 		}
 	}
 	onLeader := make(map[string]struct{})
@@ -153,17 +172,18 @@ func (t *chainTree) depth(walkCap int) (maxDepth, matched, unmatched int) {
 		}
 		h = next
 	}
-	for node, tip := range t.tips {
-		if node == leaderNode {
+	for _, node := range nodes {
+		if node == res.leader {
 			continue
 		}
-		h := tip.hash
+		h := t.tips[node].hash
 		found := false
 		for steps := 0; steps <= walkCap; steps++ {
 			if _, ok := onLeader[h]; ok {
 				found = true
-				if steps > maxDepth {
-					maxDepth = steps
+				if steps > res.max {
+					res.max = steps
+					res.deepest = node
 				}
 				break
 			}
@@ -174,12 +194,22 @@ func (t *chainTree) depth(walkCap int) (maxDepth, matched, unmatched int) {
 			h = next
 		}
 		if found {
-			matched++
+			res.matched++
 		} else {
-			unmatched++
+			res.unmatched++
+			res.unmatchedNodes = append(res.unmatchedNodes, node)
 		}
 	}
-	return maxDepth, matched, unmatched
+	return res
+}
+
+// tipLabels renders every node's current tip as hash@slot.
+func (t *chainTree) tipLabels() map[string]string {
+	labels := make(map[string]string, len(t.tips))
+	for node, tip := range t.tips {
+		labels[node] = tip.hash
+	}
+	return labels
 }
 
 const genesisKey = "<genesis>"
@@ -210,11 +240,16 @@ type ForkProbe struct {
 	// is rewritten in place are not applied a second time.
 	seen map[string]struct{}
 
-	compared   bool
-	unmatched  int
-	violations int
-	first      *criticalViolation
-	exempted   int
+	compared       bool
+	unmatched      int
+	unmatchedNodes []string
+	// leaderNode and deepestNode name the nodes behind the deepest fork seen,
+	// so a verdict can be traced to a container log.
+	leaderNode  string
+	deepestNode string
+	violations  int
+	first       *criticalViolation
+	exempted    int
 	// shuttingDown marks a Dingo node between its signal-driven shutdown
 	// message and evidence that it is running again.
 	shuttingDown map[string]bool
@@ -474,6 +509,10 @@ func (p *ForkProbe) Report() {
 			"hosts":              len(p.tree.tips),
 		}
 		details["unmatched_hosts"] = p.unmatched
+		details["unmatched_nodes"] = p.unmatchedNodes
+		details["leader_node"] = p.leaderNode
+		details["deepest_node"] = p.deepestNode
+		details["tips"] = p.tree.tipLabels()
 		// With no shared ancestor, or a host whose chain never meets the
 		// longest one, depth below k is unproven; only a measured depth of
 		// k or more is a verdict then.
@@ -521,13 +560,16 @@ func (p *ForkProbe) replay() {
 		case forkSwitch:
 			p.tree.setTip(ev.node, ev.tip)
 		}
-		d, matched, unmatched := p.tree.depth(walkCap)
-		p.unmatched = unmatched
-		if matched > 0 {
+		res := p.tree.depth(walkCap)
+		p.unmatched = res.unmatched
+		p.unmatchedNodes = res.unmatchedNodes
+		if res.matched > 0 {
 			p.compared = true
-			p.curDepth = d
-			if d > p.maxDepth {
-				p.maxDepth = d
+			p.curDepth = res.max
+			if res.max > p.maxDepth {
+				p.maxDepth = res.max
+				p.leaderNode = res.leader
+				p.deepestNode = res.deepest
 			}
 		}
 	}

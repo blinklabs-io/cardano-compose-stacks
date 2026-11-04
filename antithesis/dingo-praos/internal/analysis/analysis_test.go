@@ -262,3 +262,10 @@ func TestAnalyzerReadNewLines_RewrittenLogEndsTheShutdownWindow(t *testing.T) {
 	require.Equal(t, 2, analyzer.forkProbe.violations)
 	require.Zero(t, analyzer.forkProbe.exempted)
 }
+
+func TestLaggingNodesNamesEveryNodeAtTheMinimumTip(t *testing.T) {
+	require.Nil(t, laggingNodes(map[string]uint64{}))
+	require.Equal(t, []string{"p3"}, laggingNodes(map[string]uint64{"p1": 900, "p2": 899, "p3": 751}))
+	require.Equal(t, []string{"p2", "p4"}, laggingNodes(map[string]uint64{"p1": 900, "p4": 751, "p2": 751}))
+	require.Nil(t, laggingNodes(map[string]uint64{"p1": 900, "p2": 900}), "nodes that agree are not lagging")
+}
