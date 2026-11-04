@@ -714,8 +714,8 @@ func chainTipRange(tips map[string]uint64) (min, max uint64, ok bool) {
 	return min, max, !first
 }
 
-// laggingNodes returns, in name order, the nodes whose tip is below the
-// highest one, but only those at the lowest tip; nil when every node agrees.
+// laggingNodes returns the nodes at the lowest tip, in name order. It returns
+// nil when every node agrees on the tip.
 func laggingNodes(tips map[string]uint64) []string {
 	minTip, maxTip, ok := chainTipRange(tips)
 	if !ok || minTip == maxTip {

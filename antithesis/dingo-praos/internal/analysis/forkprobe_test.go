@@ -277,6 +277,13 @@ func TestForkProbeDisconnectedTipAtKStillFails(t *testing.T) {
 	p.Report()
 	a := rec.mustFind(t, assertForkDepth)
 	require.False(t, a.ok)
+	require.Equal(t, "p2", a.details["leader_node"])
+	require.Equal(t, "p1", a.details["deepest_node"])
+	require.Equal(t, []string{"p3"}, a.details["unmatched_nodes"])
+	tips, ok := a.details["tips"].(map[string]string)
+	require.True(t, ok)
+	require.Equal(t, "dd000006@6", tips["p2"])
+	require.Equal(t, "cc000001@9", tips["p3"])
 }
 
 func TestForkProbeReadsDingoFieldRecords(t *testing.T) {
@@ -336,33 +343,6 @@ func TestForkProbeReplayedLogLinesDoNotRegressTip(t *testing.T) {
 	require.Equal(t, 0, p.currentDepth(), "replayed lines must not move the tip")
 }
 
-func TestForkProbeDepthVerdictNamesTheNodes(t *testing.T) {
-	rec := &recorder{}
-	p := NewForkProbe(2, rec.sink())
-	for i, h := range []string{"aa000001", "aa000002", "aa000003"} {
-		ts := fmt.Sprintf("2026-10-15T10:00:%02dZ", i+1)
-		p.Observe("p1", dingoMsgLine(ts, fullHash(h), i+1))
-		p.Observe("p2", dingoMsgLine(ts, fullHash(h), i+1))
-	}
-	p.Observe("p3", dingoMsgLine("2026-10-15T10:00:10Z", fullHash("cc000001"), 9))
-	for i, h := range []string{"dd000004", "dd000005", "dd000006"} {
-		p.Observe("p2", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", 11+i), fullHash(h), 4+i))
-	}
-	for i, h := range []string{"ee000004", "ee000005"} {
-		p.Observe("p1", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", 11+i), fullHash(h), 4+i))
-	}
-	p.Report()
-	a := rec.mustFind(t, assertForkDepth)
-	require.False(t, a.ok)
-	require.Equal(t, "p2", a.details["leader_node"])
-	require.Equal(t, "p1", a.details["deepest_node"])
-	require.Equal(t, []string{"p3"}, a.details["unmatched_nodes"])
-	tips, ok := a.details["tips"].(map[string]string)
-	require.True(t, ok)
-	require.Equal(t, "dd000006@6", tips["p2"])
-	require.Equal(t, "cc000001@9", tips["p3"])
-}
-
 func TestForkProbeDeepestNodeKeepsTheDepthMaximum(t *testing.T) {
 	rec := &recorder{}
 	p := NewForkProbe(40, rec.sink())
@@ -383,4 +363,26 @@ func TestForkProbeDeepestNodeKeepsTheDepthMaximum(t *testing.T) {
 	a := rec.mustFind(t, assertForkDepth)
 	require.True(t, a.ok)
 	require.Equal(t, "p1", a.details["deepest_node"], "the node that forked stays named after it rejoins")
+}
+
+func TestForkProbeLeaderNodeStaysWithTheDepthMaximum(t *testing.T) {
+	rec := &recorder{}
+	p := NewForkProbe(40, rec.sink())
+	for i, h := range []string{"aa000001", "aa000002"} {
+		ts := fmt.Sprintf("2026-10-15T10:00:%02dZ", i+1)
+		p.Observe("p1", dingoMsgLine(ts, fullHash(h), i+1))
+		p.Observe("p2", dingoMsgLine(ts, fullHash(h), i+1))
+	}
+	for i, h := range []string{"dd000003", "dd000004", "dd000005"} {
+		p.Observe("p2", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", 3+i), fullHash(h), 3+i))
+	}
+	// p1 catches up on its own fork, then overtakes p2, so the leader changes
+	// without the fork getting any deeper.
+	for i, h := range []string{"ee000003", "ee000004", "ee000005", "ee000006"} {
+		p.Observe("p1", dingoMsgLine(fmt.Sprintf("2026-10-15T10:00:%02dZ", 10+i), fullHash(h), 3+i))
+	}
+	p.Report()
+	a := rec.mustFind(t, assertForkDepth)
+	require.Equal(t, "p2", a.details["leader_node"], "leader must match the deepest fork")
+	require.Equal(t, "p1", a.details["deepest_node"])
 }

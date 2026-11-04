@@ -566,9 +566,9 @@ func (p *ForkProbe) replay() {
 		if res.matched > 0 {
 			p.compared = true
 			p.curDepth = res.max
-			p.leaderNode = res.leader
 			if res.max > p.maxDepth {
 				p.maxDepth = res.max
+				p.leaderNode = res.leader
 				p.deepestNode = res.deepest
 			}
 		}
