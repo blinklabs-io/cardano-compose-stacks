@@ -16,7 +16,7 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 - **postgres**: This is the PostgreSQL database service used by the cardano-db-sync service to store the Cardano blockchain data.
 - **dingo**, **otel-collector**, and **jaeger**: An optional OpenTelemetry stack for Dingo, started by the `dingo-otel` profile.
-- **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node and Bursa, and provides a preloaded service health dashboard.
+- **prometheus** and **grafana**: An optional observability stack that scrapes metrics from the Cardano node and Dingo, and provides a preloaded service health dashboard.
 
 ## Additional stacks
 
@@ -40,7 +40,7 @@ Start Prometheus and Grafana with the `observability` profile:
 docker compose --profile observability up -d
 ```
 
-Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node and Bursa when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
+Grafana is available at <http://localhost:3000> and Prometheus at <http://localhost:9091>. Both ports bind to localhost. Grafana allows anonymous read-only access for local use. Prometheus scrapes the node and Dingo when those services are running; start their profiles separately to collect their metrics. Prometheus retains 15 days of data by default. Set `PROMETHEUS_RETENTION` to change that period.
 
 ### Start Dingo with OpenTelemetry
 
@@ -117,6 +117,8 @@ This will stop and remove all the services started with `docker compose up`.
 If you've started specific services using profiles and want to stop them, you can specify the same profiles in the `down` command.
 
 ### How to Use Bursa
+
+Bursa serves metrics only on its own loopback interface (`127.0.0.1:8081`), so they are not published or scraped by Prometheus.
 
 To start just the `bursa` service, which is part of the `bursa` profile, run:
 

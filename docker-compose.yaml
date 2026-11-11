@@ -107,7 +107,6 @@ services:
     command: ["api"]
     ports:
       - ${BURSA_API_LISTEN_PORT:-8090}:8080
-      - ${BURSA_METRICS_LISTEN_PORT:-8081}:8081
     profiles:
       - bursa
   
