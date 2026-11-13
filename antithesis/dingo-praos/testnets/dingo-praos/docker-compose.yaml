@@ -119,6 +119,7 @@ services:
       CARDANO_NODE_SOCKET_PATH: /ipc/dingo.socket
       CARDANO_PRIVATE_BIND_ADDR: "0.0.0.0"
       DINGO_LOG_FILE: /logs/p1.log
+      DINGO_LOG_FILE_APPEND: "true"
       DINGO_LOGGING_FORMAT: json
       DINGO_LOGGING_LEVEL: info
       CARDANO_BLOCK_PRODUCER: "true"
