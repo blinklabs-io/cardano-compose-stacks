@@ -114,7 +114,8 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        tail -n 0 -F /logs/p1.log 2>/dev/null
+        offset=$(wc -c < /logs/p1.log 2>/dev/null) || offset=0;
+        tail -c +$((offset + 1)) -F /logs/p1.log 2>/dev/null
         | grep --line-buffered -E '"level":"(ERROR|WARN)"' &
         exec /bin/entrypoint.sh serve
     depends_on:
