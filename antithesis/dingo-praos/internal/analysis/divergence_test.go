@@ -91,6 +91,7 @@ func TestIsExpectedRejection(t *testing.T) {
 		"outside validity interval: start 5, slot 9",
 		`{"kind":"BadInputsUTxO"}`,
 		`{"kind":"OutsideValidityIntervalUTxO"}`,
+		"UTxO not found for collateral input (failed to resolve input ab#1: utxo not found)",
 		"",
 	} {
 		require.True(t, IsExpectedRejection(reason), reason)
