@@ -116,7 +116,7 @@ services:
       - >-
         offset=$(wc -c < /logs/p1.log 2>/dev/null) || offset=0;
         tail -c +$((offset + 1)) -F /logs/p1.log 2>/dev/null
-        | grep --line-buffered -E '"level":"(ERROR|WARN)"' &
+        | grep --line-buffered -Ei '"level":"(ERROR|WARN|FATAL|CRITICAL|PANIC|ALERT|EMERGENCY|ERROR\+([4-9]|[1-9][0-9]+))"' &
         exec /bin/entrypoint.sh serve
     depends_on:
       configurator:
