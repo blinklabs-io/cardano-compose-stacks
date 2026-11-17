@@ -47,6 +47,9 @@ func TestIsScriptFailure(t *testing.T) {
 		`{"kind":"BadInputsUTxO"}`,
 		"outside validity interval",
 		"value not conserved",
+		// Dingo reports a spent collateral input with "collateral" in the
+		// text, but the cause is ledger state, not script validation.
+		"conway utxo validation rule 14: transaction: UTxO not found for collateral input (failed to resolve input ab#1: utxo not found)",
 	} {
 		require.False(t, IsScriptFailure(reason), reason)
 	}

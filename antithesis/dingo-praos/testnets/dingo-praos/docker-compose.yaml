@@ -107,6 +107,17 @@ services:
     pull_policy: never
     init: true
     hostname: p1.example
+    # DINGO_LOG_FILE sends all output to the log volume, so a startup or
+    # shutdown failure never reaches the container log Antithesis shows.
+    # Echo warnings and errors to stdout as well, then exec the entrypoint so
+    # it stays the signal target.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        offset=$(wc -c < /logs/p1.log 2>/dev/null) || offset=0;
+        tail -c +$((offset + 1)) -F /logs/p1.log 2>/dev/null
+        | grep --line-buffered -Ei '"level":"(ERROR|WARN|FATAL|CRITICAL|PANIC|ALERT|EMERGENCY|ERROR\+([4-9]|[1-9][0-9]+))"' &
+        exec /bin/entrypoint.sh serve
     depends_on:
       configurator:
         condition: service_completed_successfully
