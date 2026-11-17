@@ -28,6 +28,8 @@ import (
 var expectedRejectionMarkers = []string{
 	"bad input",
 	"badinputsutxo",
+	"utxo not found",
+	"failed to resolve input",
 	"outside validity interval",
 	"outsidevalidityinterval",
 	"mempool full",
