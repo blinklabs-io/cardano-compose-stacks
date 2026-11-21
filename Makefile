@@ -1,10 +1,17 @@
-POSTGRES_PASSWORD_FILE ?= postgres-config/secrets/postgres_password
-
 .PHONY: postgres-secret check-versions validate-versions add-version
 
 postgres-secret:
 	@set -eu; \
-	secret_file="$(POSTGRES_PASSWORD_FILE)"; \
+	secret_dir=postgres-config/secrets; \
+	secret_file="$$secret_dir/postgres_password"; \
+	if [ -L postgres-config ] || [ -L "$$secret_dir" ] || [ ! -d "$$secret_dir" ]; then \
+		echo "refusing unsafe secret directory $$secret_dir" >&2; \
+		exit 1; \
+	fi; \
+	if [ -L "$$secret_file" ]; then \
+		echo "refusing symlink secret file $$secret_file" >&2; \
+		exit 1; \
+	fi; \
 	if [ -e "$$secret_file" ]; then \
 		if [ ! -f "$$secret_file" ] || [ ! -s "$$secret_file" ]; then \
 			echo "refusing to replace invalid secret file $$secret_file" >&2; \
@@ -13,8 +20,6 @@ postgres-secret:
 		chmod 600 "$$secret_file"; \
 		exit 0; \
 	fi; \
-	secret_dir="$$(dirname "$$secret_file")"; \
-	mkdir -p "$$secret_dir"; \
 	tmp_file="$$(mktemp "$${secret_file}.tmp.XXXXXX")"; \
 	trap 'rm -f "$$tmp_file"' 0 1 2 15; \
 	od -An -N32 -tx1 /dev/urandom | tr -d '[:space:]' > "$$tmp_file"; \
