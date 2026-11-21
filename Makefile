@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := check-versions
+
 .PHONY: postgres-secret check-versions validate-versions add-version
 
 postgres-secret:
