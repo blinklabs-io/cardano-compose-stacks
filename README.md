@@ -27,6 +27,25 @@ This docker-compose setup provides a comprehensive environment for running Carda
 
 Because each service has defined dependency that means starting a service will also start it's dependencies.
 
+### PostgreSQL Password
+
+Before starting the `db-sync` profile for the first time, create its local
+PostgreSQL password:
+
+```bash
+make postgres-secret
+```
+
+This creates a 256-bit random value in
+`postgres-config/secrets/postgres_password`. The file is ignored by Git and
+reused on later runs, so restarting the stack does not change the database
+password.
+
+An initialized PostgreSQL volume must keep the password already assigned to its
+database role. Restore that password to the file above before starting an
+existing volume. The target preserves a non-empty existing file and restricts
+its permissions instead of replacing it.
+
 ### Using Profiles in Docker Compose
 
 With profiles, you can selectively start services based on different needs or environments.
