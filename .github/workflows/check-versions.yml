@@ -12,4 +12,4 @@ permissions:
 
 jobs:
   orchestrate:
-    uses: blinklabs-io/actions/.github/workflows/reuseable-check-versions.yml@d3aa875070b18acdcb31256100558d44c16b512f
+    uses: blinklabs-io/shared-actions/.github/workflows/reuseable-check-versions.yml@d90d0eef9c2d00ecac430e1b184ac2993ac768fb
