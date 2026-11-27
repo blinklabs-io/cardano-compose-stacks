@@ -17,6 +17,7 @@
 package archivedemo
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -91,6 +92,18 @@ func dial(
 	return oConn, nil
 }
 
+// closeTimeout bounds how long closing a connection waits for its goroutines
+// and protocol callbacks to finish. Every caller defers closeConn before any
+// deferred unlock of a mutex the callbacks take, so deferred unlocks run
+// first and the wait cannot deadlock on them.
+const closeTimeout = 10 * time.Second
+
+func closeConn(oc *ouroboros.Connection) {
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+	_ = oc.Close(ctx)
+}
+
 // GetTip returns the current chain tip as reported by ep over a fresh
 // connection. cardano-node only updates the tip on a new connection, so
 // callers should not cache the connection.
@@ -99,7 +112,7 @@ func GetTip(ep Endpoint, magic uint32) (Tip, error) {
 	if err != nil {
 		return Tip{}, err
 	}
-	defer func() { _ = oc.Close() }()
+	defer closeConn(oc)
 	tip, err := oc.ChainSync().Client.GetCurrentTip()
 	if err != nil {
 		return Tip{}, fmt.Errorf("tip from %s: %w", ep.Name, err)
@@ -209,7 +222,7 @@ func FindBlockAtOrAfterSlot(
 	if err != nil {
 		return pcommon.Point{}, fmt.Errorf("dial %s: %w", ep.Name, err)
 	}
-	defer func() { _ = oc.Close() }()
+	defer closeConn(oc)
 
 	// Origin point tells the peer to start streaming from genesis on the
 	// first roll-forward.
@@ -288,7 +301,7 @@ func FetchBlock(
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = oc.Close() }()
+	defer closeConn(oc)
 
 	// Single-point fetch: start == end is inclusive on both ends.
 	if err := oc.BlockFetch().Client.GetBlockRange(point, point); err != nil {
